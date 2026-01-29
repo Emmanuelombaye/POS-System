@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border border-slate-800 bg-card/95 p-4 shadow-sm",
+        "rounded-xl border-none bg-white text-brand-charcoal shadow-soft transition-all hover:shadow-card",
         className
       )}
       {...props}
@@ -21,7 +21,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      "mb-3 flex items-center justify-between gap-2 border-b border-slate-800 pb-2",
+      "flex flex-col space-y-1.5 p-6 pb-2",
       className
     )}
     {...props}
@@ -33,7 +33,17 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   ...props
 }) => (
   <h2
-    className={cn("text-sm font-semibold tracking-tight text-slate-50", className)}
+    className={cn("text-lg font-semibold leading-none tracking-tight text-brand-charcoal", className)}
+    {...props}
+  />
+);
+
+export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({
+  className,
+  ...props
+}) => (
+  <p
+    className={cn("text-sm text-gray-500", className)}
     {...props}
   />
 );
@@ -42,6 +52,6 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
 }) => (
-  <div className={cn("text-sm text-slate-200", className)} {...props} />
+  <div className={cn("p-6 pt-2 text-sm text-gray-600", className)} {...props} />
 );
 

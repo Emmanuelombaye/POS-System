@@ -1,12 +1,13 @@
 import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
-import { Moon, SunMedium } from "lucide-react";
+import { Moon, SunMedium, LogOut } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export const RootLayout = () => {
   const user = useAppStore((s) => s.currentUser);
   const settings = useAppStore((s) => s.settings);
-  const updateSettings = useAppStore((s) => s.updateSettings);
+
   const logout = useAppStore((s) => s.logout);
   const location = useLocation();
 
@@ -14,54 +15,59 @@ export const RootLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const toggleTheme = () => {
-    updateSettings(
-      { theme: settings.theme === "dark" ? "light" : "dark" },
-      user?.id ?? "system"
-    );
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("dark");
-    }
-  };
+
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
-      <header className="flex flex-col gap-2 items-start sm:items-center sm:justify-between border-b border-slate-800 bg-slate-950/95 px-3 py-2 sm:flex-row sm:px-6 sm:py-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-700 text-sm sm:text-lg font-bold">
-            <span>B</span>
+    <div className="flex min-h-screen flex-col bg-brand-offwhite text-brand-charcoal font-sans selection:bg-brand-burgundy/20">
+      {/* Luxury Top Bar */}
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-gray-200 bg-brand-charcoal px-6 py-4 shadow-md sm:px-8">
+        <div className="flex items-center gap-4">
+          {/* Brand Logo */}
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-burgundy to-red-900 shadow-lg text-white font-bold text-xl shadow-red-900/20">
+            <span>E</span>
           </div>
           <div>
-            <div className="text-xs sm:text-sm font-semibold tracking-wide">
-              Eden Top
+            <div className="text-lg font-bold tracking-tight text-white leading-none">
+              EDEN TOP
             </div>
-            <div className="text-[10px] sm:text-xs text-slate-400">
-              {user ? `${user.name} • ${user.role.toUpperCase()}` : "Not signed in"}
+            <div className="text-[10px] uppercase tracking-[0.2em] text-brand-gold mt-1">
+              Premium Butchery
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button
-            size="icon"
-            variant="outline"
-            aria-label="Toggle theme"
-            onClick={toggleTheme}
-            className="h-8 w-8 sm:h-10 sm:w-10"
-          >
-            {settings.theme === "dark" ? (
-              <SunMedium className="h-3 w-3 sm:h-4 sm:w-4 text-amber-300" />
-            ) : (
-              <Moon className="h-3 w-3 sm:h-4 sm:w-4 text-slate-200" />
-            )}
-          </Button>
+
+        <div className="flex items-center gap-4">
+          {/* User Profile Capsule */}
+          <div className="hidden sm:flex items-center gap-3 rounded-full bg-white/5 px-4 py-1.5 border border-white/10 backdrop-blur-sm">
+            <div className="flex flex-col items-end">
+              <span className="text-xs font-bold text-white">{user?.name}</span>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">{user?.role}</span>
+            </div>
+            <div className="h-8 w-8 rounded-full bg-brand-burgundy flex items-center justify-center text-xs text-white font-bold border-2 border-brand-charcoal">
+              {user?.name.charAt(0)}
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-white/10 mx-2 hidden sm:block"></div>
+
+          <ThemeToggle />
+
           {user && (
-            <Button size="sm" variant="ghost" onClick={logout} className="text-[11px] sm:text-sm h-8 sm:h-9 px-2 sm:px-3">
-              Logout
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={logout}
+              className="text-gray-400 hover:text-red-400 hover:bg-white/5"
+              title="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
             </Button>
           )}
         </div>
       </header>
-      <main className="flex-1">
+
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-[1920px] mx-auto p-0 sm:p-0">
         <Outlet />
       </main>
     </div>

@@ -3,19 +3,172 @@
 @tailwind utilities;
 
 :root {
-  --background: 222 47% 5%;
+  /* --- Light Theme (Default) --- */
+  /* Brand - Burgundy & Charcoal */
+  --brand-burgundy: 0 65% 33%;
+  /* #8B1D1D */
+  --brand-charcoal: 220 39% 11%;
+  /* #111827 */
+  --brand-gold: 41 53% 55%;
+  /* #C9A24D */
+  --brand-offwhite: 0 0% 98%;
+  /* #F9FAFB */
+  --brand-secondary: 0 0% 98%;
+  /* #FAFAFA */
+
+  /* Semantic UI */
+  --background: 210 20% 98%;
+  /* #F9FAFB (Off-White) */
+  --foreground: 220 39% 11%;
+  /* #111827 (Charcoal) */
+
+  --card: 0 0% 100%;
+  /* #FFFFFF */
+  --card-foreground: 220 39% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 39% 11%;
+
+  --primary: 0 65% 33%;
+  /* #8B1D1D */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 41 53% 55%;
+  /* Gold */
+  --accent-foreground: 220 39% 11%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 0 65% 33%;
+
+  /* Text Readability (High Contrast) */
+  --text-primary: 220 39% 11%;
+  /* #111827 (Gray 900) */
+  --text-secondary: 215 28% 17%;
+  /* #1F2937 (Gray 800) - Darker for readability */
+  --text-muted: 215 16% 47%;
+  /* #6B7280 (Gray 500) - Readable standard */
+
+  /* Dashboard Pastels (Light) */
+  --pastel-mint: 145 60% 95%;
+  /* #E9F9EF */
+  --pastel-blue: 220 100% 97%;
+  /* #EEF4FF */
+  --pastel-lavender: 265 100% 98%;
+  /* #F6EEFF */
+  --pastel-peach: 24 100% 96%;
+  /* #FFF1E8 */
+
+  --radius: 1rem;
+}
+
+.dark {
+  /* --- Dark Theme --- */
+  /* Brand - Softer Burgundy & Off-White Text */
+  --brand-burgundy: 0 70% 50%;
+  /* #D93030 (Lighter for dark mode) or keep rich */
+  --brand-charcoal: 210 20% 98%;
+  /* #F9FAFB (Inverted) */
+  --brand-gold: 41 53% 55%;
+  /* Gold stays same */
+  --brand-offwhite: 222 47% 11%;
+  /* #0F172A (Deep Slate) */
+  --brand-secondary: 217 33% 17%;
+  /* #1E293B */
+
+  /* Semantic UI */
+  --background: 222 47% 11%;
+  /* #0F172A */
   --foreground: 210 40% 98%;
-  --border: 215 25% 20%;
-  --input: 215 25% 20%;
-  --ring: 0 84% 60%;
+  /* #F8FAFC */
+
+  --card: 217 33% 17%;
+  /* #1E293B (Slate 800) */
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 0 72% 51%;
+  /* #DC2626 (Red 600 - brighter) */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 41 53% 55%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 33% 17%;
+  /* Blend border into bg */
+  --input: 217 33% 17%;
+  --ring: 0 72% 51%;
+
+  --ring: 0 72% 51%;
+
+  /* Text Readability (Dark Mode) */
+  --text-primary: 210 40% 98%;
+  /* #F9FAFB (Gray 50) */
+  --text-secondary: 210 40% 96%;
+  /* #F3F4F6 (Gray 100) */
+  --text-muted: 215 20% 65%;
+  /* #9CA3AF (Gray 400) */
+
+  /* Dashboard Pastels (Dark - Muted/Translucent) */
+  /* We use darker slate with slight tint for "Pastels" in dark mode */
+  --pastel-mint: 145 30% 15%;
+  /* Dark Green tint */
+  --pastel-blue: 220 30% 15%;
+  /* Dark Blue tint */
+  --pastel-lavender: 265 30% 15%;
+  /* Dark Purple tint */
+  --pastel-peach: 24 30% 15%;
+  /* Dark Orange tint */
 }
 
-body {
-  @apply bg-slate-950 text-slate-50 antialiased;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-brand-offwhite text-foreground antialiased selection:bg-brand-gold/30 selection:text-brand-charcoal;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
 }
 
-.scrollbar-thin {
-  scrollbar-width: thin;
+/* Premium Scrollbar */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+  }
 }
 
+/* Smooth Transitions Global */
+* {
+  @apply transition-colors duration-200 ease-in-out;
+}

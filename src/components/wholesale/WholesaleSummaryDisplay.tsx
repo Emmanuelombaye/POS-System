@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DailySummary } from "./WholesaleSummaryCard";
+import { FileText } from "lucide-react";
 
 interface WholesaleSummaryDisplayProps {
   summaries: DailySummary[];
@@ -33,14 +34,14 @@ export const WholesaleSummaryDisplay = ({
 
   if (summaries.length === 0) {
     return (
-      <Card className="border-slate-700 bg-slate-900">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg text-slate-50">
+          <CardTitle className="text-lg text-brand-charcoal">
             Daily Summaries
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-gray-400">
             No summaries recorded yet. Start by adding a daily entry above.
           </p>
         </CardContent>
@@ -49,22 +50,26 @@ export const WholesaleSummaryDisplay = ({
   }
 
   return (
-    <Card className="border-slate-700 bg-slate-900">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-lg text-slate-50">
+        <CardTitle className="text-lg text-brand-charcoal flex items-center gap-2">
+          <FileText className="h-5 w-5 text-brand-gold" />
           Daily Summaries
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-8">
         {Object.entries(byBranch).map(([branchName, items]) => {
           if (items.length === 0) return null;
 
           return (
-            <div key={branchName} className="space-y-2 border-b border-slate-700 pb-4 last:border-b-0">
-              <h3 className="text-sm font-semibold text-emerald-400">
-                {branchName}
-              </h3>
-              <div className="space-y-1">
+            <div key={branchName} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-brand-burgundy"></div>
+                <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wider">
+                  {branchName}
+                </h3>
+              </div>
+              <div className="space-y-3 pl-4 border-l-2 border-gray-100 ml-1">
                 {items
                   .sort(
                     (a, b) =>
@@ -80,22 +85,21 @@ export const WholesaleSummaryDisplay = ({
                     });
 
                     return (
-                      <p
+                      <div
                         key={summary.id}
-                        className="text-xs text-slate-300 leading-relaxed"
+                        className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-brand-burgundy/20 hover:bg-white transition-colors"
                       >
-                        <span className="font-medium text-slate-200">
-                          {formattedDate}
-                        </span>
-                        : M-Pesa KES{" "}
-                        <span className="font-semibold text-blue-400">
-                          {summary.mpesaReceived.toLocaleString()}
-                        </span>{" "}
-                        | Cash KES{" "}
-                        <span className="font-semibold text-green-400">
-                          {summary.cashReceived.toLocaleString()}
-                        </span>
-                      </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <span className="font-semibold text-brand-charcoal">
+                            {formattedDate}
+                          </span>
+                          <div className="flex items-center gap-4">
+                            <span>M-Pesa: <span className="font-bold text-brand-charcoal">{summary.mpesaReceived.toLocaleString()}</span></span>
+                            <span className="w-px h-3 bg-gray-300 hidden sm:block"></span>
+                            <span>Cash: <span className="font-bold text-brand-charcoal">{summary.cashReceived.toLocaleString()}</span></span>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
               </div>

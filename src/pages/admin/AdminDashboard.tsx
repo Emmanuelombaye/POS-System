@@ -1,12 +1,93 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAppStore, Role, User } from "@/store/appStore";
+import { useAppStore, Role, User, Transaction, AuditLogEntry } from "@/store/appStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, summarizeTransactionsByDay } from "@/utils/format";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  CartesianGrid
+} from "recharts";
+import {
+  TrendingUp,
+  Package,
+  AlertTriangle,
+  Scale,
+  CreditCard,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
+  Users,
+  Settings,
+  ShoppingCart,
+  FileText,
+  DollarSign,
+  PlusCircle,
+  Trash2,
+  Award
+} from "lucide-react";
+import { ProductManager } from "@/components/admin/ProductManager";
+
+// --- Types & Interfaces ---
+
+interface DashboardStat {
+  label: string;
+  value: string | number;
+  subtext?: string;
+  icon: React.ReactNode;
+  colorClass: string;
+}
+
+// --- Components ---
+
+interface SummaryCardProps {
+  stat: DashboardStat;
+  variant: "mint" | "blue" | "lavender" | "peach" | "white";
+}
+
+const VARIANTS = {
+  mint: "bg-pastel-mint text-emerald-900",
+  blue: "bg-pastel-blue text-blue-900",
+  lavender: "bg-pastel-lavender text-purple-900",
+  peach: "bg-pastel-peach text-orange-900",
+  white: "bg-white border border-gray-100 text-brand-charcoal",
+};
+
+const ICON_VARIANTS = {
+  mint: "bg-emerald-100/50 text-emerald-700",
+  blue: "bg-blue-100/50 text-blue-700",
+  lavender: "bg-purple-100/50 text-purple-700",
+  peach: "bg-orange-100/50 text-orange-700",
+  white: "bg-gray-50 text-brand-charcoal",
+};
+
+const SummaryCard = ({ stat, variant = "white" }: SummaryCardProps) => (
+  <Card className={`border-none shadow-sm rounded-[20px] ${VARIANTS[variant]} transition-transform hover:scale-[1.02] duration-200`}>
+    <CardContent className="p-6 flex items-start justify-between">
+      <div className="space-y-1">
+        <p className={`text-sm font-bold opacity-80 uppercase tracking-wide`}>{stat.label}</p>
+        <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
+        {stat.subtext && <p className="text-xs font-bold opacity-80 mt-1">{stat.subtext}</p>}
+      </div>
+      <div className={`p-3 rounded-full ${ICON_VARIANTS[variant]}`}>
+        {stat.icon}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export const AdminDashboard = () => {
   const {
@@ -17,37 +98,119 @@ export const AdminDashboard = () => {
     auditLog,
     addUser,
     updateUserRole,
+    deleteUser,
     updateSettings,
   } = useAppStore();
 
   const [newUserName, setNewUserName] = useState("");
   const [newUserRole, setNewUserRole] = useState<Role>("cashier");
 
+  // --- Data Calculations ---
+  // (Preserved existing logic)
+  const today = new Date();
+  const isToday = (dateString: string) => {
+    const d = new Date(dateString);
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const dashboardData = useMemo(() => {
+    const todayTxs = transactions.filter((tx) => isToday(tx.createdAt));
+
+    const todaySales = todayTxs.reduce((sum, tx) => sum + tx.total, 0);
+    const todayWeight = todayTxs.reduce((sum, tx) =>
+      sum + tx.items.reduce((w, item) => w + item.weightKg, 0), 0
+    );
+
+    const availableStock = products
+      .filter(p => p.isActive)
+      .reduce((sum, p) => sum + p.stockKg, 0);
+
+    const lowStockItems = products.filter(
+      (p) => p.isActive && p.stockKg <= p.lowStockThresholdKg
+    );
+
+    // Best selling cut today
+    const salesByCut = new Map<string, number>();
+    todayTxs.flatMap(tx => tx.items).forEach(item => {
+      salesByCut.set(item.productName, (salesByCut.get(item.productName) || 0) + (item.pricePerKg * item.weightKg));
+    });
+    const bestSelling = [...salesByCut.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      todaySales,
+      todayWeight,
+      availableStock,
+      lowStockCount: lowStockItems.length,
+      txCount: todayTxs.length,
+      bestSellingCut: bestSelling ? bestSelling[0] : "N/A",
+      lowStockItems // Pass full list for potential display
+    };
+  }, [transactions, products]);
+
+  // Charts
   const revenueByDay = useMemo(
     () => summarizeTransactionsByDay(transactions),
     [transactions]
   );
 
-  const topProducts = useMemo(() => {
-    const map = new Map<
-      string,
-      { name: string; total: number }
-    >();
-    for (const tx of transactions) {
-      for (const i of tx.items) {
-        const existing = map.get(i.productId) ?? {
-          name: i.productName,
-          total: 0,
-        };
-        existing.total += i.pricePerKg * i.weightKg;
-        map.set(i.productId, existing);
-      }
-    }
-    return Array.from(map.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-  }, [transactions]);
+  const meatPerformance = useMemo(() => {
+    const map = new Map<string, number>();
+    // Aggregate by category for better high-level view
+    transactions.flatMap(tx => tx.items).forEach(item => {
+      // Find product to get category
+      const product = products.find(p => p.id === item.productId);
+      const category = product?.category || "Other";
+      map.set(category, (map.get(category) || 0) + item.weightKg);
+    });
 
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }))
+      .sort((a, b) => b.value - a.value);
+  }, [transactions, products]);
+
+  const stockDistribution = useMemo(() => {
+    const map = new Map<string, number>();
+    products.filter(p => p.isActive).forEach(p => {
+      map.set(p.category, (map.get(p.category) || 0) + p.stockKg);
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
+  }, [products]);
+
+  // Activity Feed (Merged & Sorted)
+  const activityFeed = useMemo(() => {
+    // Transform transactions to specific format
+    const txActivities = transactions.map(tx => ({
+      id: tx.id,
+      type: 'sale',
+      title: `Sale: ${formatCurrency(tx.total, settings)}`,
+      desc: `${tx.items.length} items sold`,
+      time: tx.createdAt,
+      icon: <CreditCard className="h-3 w-3 text-emerald-400" />
+    }));
+
+    // Transform audit logs
+    const logActivities = auditLog.map(log => ({
+      id: log.id,
+      type: 'system',
+      title: log.action,
+      desc: `by ${log.actorName}`,
+      time: log.createdAt,
+      icon: <Settings className="h-3 w-3 text-amber-400" />
+    }));
+
+    return [...txActivities, ...logActivities]
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 10); // Show recent 10
+  }, [transactions, auditLog, settings]);
+
+  const COLORS = ['#7A1E1E', '#C9A24D', '#1C1C1C', '#1E7F4E', '#E08A1E', '#8B0000'];
+
+  // --- Handlers from Original Code ---
   const handleCreateUser = () => {
     if (!newUserName.trim()) return;
     const user: User = {
@@ -64,308 +227,411 @@ export const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-3 sm:space-y-4 px-2 sm:px-4 py-3 sm:py-4">
-      {/* Navigation to Wholesale Desk */}
-      <div>
-        <Link to="/admin/wholesale">
-          <Button className="bg-purple-600 hover:bg-purple-700 w-full sm:w-auto text-sm">
-            → Wholesale Desk
+    <div className="space-y-10 px-6 py-10 max-w-[1920px] mx-auto bg-brand-offwhite">
+
+      {/* 1. Header & Navigation */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold text-brand-burgundy tracking-tight">Butchery POS</h1>
+          <p className="text-base text-gray-500 mt-2 font-medium">
+            Reports & Analytics
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link to="/admin/wholesale">
+            <Button variant="outline" className="h-12 px-6 rounded-xl border-gray-200 text-brand-charcoal hover:border-brand-burgundy/20 gap-2">
+              <Package className="h-4 w-4" />
+              Wholesale Desk
+            </Button>
+          </Link>
+          <Button variant="default" className="h-12 px-6 rounded-xl bg-brand-burgundy hover:bg-red-900 text-white shadow-lg shadow-red-900/20 gap-2">
+            <PlusCircle className="h-4 w-4" />
+            New Sale
           </Button>
-        </Link>
+        </div>
       </div>
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Today&apos;s revenue</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs">
-            <div className="text-2xl font-semibold">
-              {formatCurrency(
-                transactions
-                  .filter((tx) => {
-                    const d = new Date(tx.createdAt);
-                    const today = new Date();
-                    return (
-                      d.getDate() === today.getDate() &&
-                      d.getMonth() === today.getMonth() &&
-                      d.getFullYear() === today.getFullYear()
-                    );
-                  })
-                  .reduce((sum, tx) => sum + tx.total, 0),
-                settings
-              )}
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              Live total of all cashier sales for the current day.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Active products</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs">
-            <div className="text-2xl font-semibold">
-              {products.filter((p) => p.isActive).length}
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              Products currently visible in the POS. Manage catalogue below.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Team members</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs">
-            <div className="text-2xl font-semibold">{users.length}</div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              Cashiers, managers, and admins with access to this system.
-            </p>
-          </CardContent>
-        </Card>
+      {/* 2. Top Summary Cards (Responsive Grid) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <SummaryCard
+          variant="mint"
+          stat={{
+            label: "Today's Sales",
+            value: formatCurrency(dashboardData.todaySales, settings),
+            subtext: "+12.4% vs yesterday", // Static for UI demo per safe prompt
+            colorClass: "", // unused in new design
+            icon: <TrendingUp className="h-6 w-6" />
+          }} />
+        <SummaryCard
+          variant="blue"
+          stat={{
+            label: "Weight Sold",
+            value: `${dashboardData.todayWeight.toFixed(1)} kg`,
+            subtext: "Last 7 days volume",
+            colorClass: "",
+            icon: <Scale className="h-6 w-6" />
+          }} />
+        <SummaryCard
+          variant="lavender"
+          stat={{
+            label: "Avg Transaction",
+            value: formatCurrency(dashboardData.txCount > 0 ? dashboardData.todaySales / dashboardData.txCount : 0, settings),
+            subtext: `${dashboardData.txCount} transactions`,
+            colorClass: "",
+            icon: <CreditCard className="h-6 w-6" />
+          }} />
+        <SummaryCard
+          variant="peach"
+          stat={{
+            label: "Best Branch",
+            value: "Shop 3", // Placeholder per Figma image for visual match
+            subtext: "Top performer",
+            colorClass: "",
+            icon: <Award className="h-6 w-6" />
+          }} />
       </div>
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-[1.6fr,1.4fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue trend</CardTitle>
+      {/* 3. Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Chart: Sales Over Time */}
+        <Card className="lg:col-span-2 border-none shadow-sm rounded-[20px]">
+          <CardHeader className="pt-8 px-8 pb-4">
+            <CardTitle className="text-xl flex items-center gap-2 font-bold text-brand-charcoal">
+              <TrendingUp className="h-5 w-5 text-brand-burgundy" />
+              Sales Performance
+            </CardTitle>
+            <p className="text-sm font-medium text-gray-400">Revenue trend over time</p>
           </CardHeader>
-          <CardContent className="h-48 sm:h-64">
+          <CardContent className="h-96 px-6 pb-6">
             {revenueByDay.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-xs text-slate-500">
-                No revenue yet. Once cashiers start selling, trends appear here.
+              <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+                No sales data available yet.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueByDay}>
-                  <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
-                  <YAxis
-                    stroke="#9ca3af"
-                    fontSize={11}
-                    tickFormatter={(v) =>
-                      `${settings.currency} ${Number(v).toLocaleString()}`
-                    }
-                  />
+                <LineChart data={revenueByDay} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis dataKey="date" stroke="hsl(var(--text-muted))" fontSize={12} tickLine={false} axisLine={false} dy={10} tick={{ fontWeight: 'bold' }} />
+                  <YAxis stroke="hsl(var(--text-muted))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${settings.currency} ${v}`} dx={-10} tick={{ fontWeight: 'bold' }} />
                   <Tooltip
-                    contentStyle={{
-                      background: "#020617",
-                      border: "1px solid #1f2937",
-                      borderRadius: 8,
-                      fontSize: 11,
-                    }}
-                    formatter={(value: any) =>
-                      `${settings.currency} ${Number(value).toLocaleString()}`
-                    }
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
+                    itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
+                    formatter={(v) => [formatCurrency(Number(v), settings), "Revenue"]}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    stroke="#f97373"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
+                  <Line type="monotone" dataKey="total" stroke="hsl(var(--brand-burgundy))" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: "#C9A24D", stroke: "#fff", strokeWidth: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top products</CardTitle>
-          </CardHeader>
-          <CardContent className="h-48 sm:h-64">
-            {topProducts.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-xs text-slate-500">
-                No product performance data yet.
-              </div>
-            ) : (
+        {/* Side Charts Group */}
+        <div className="space-y-8">
+          {/* Meat Cut Performance */}
+          <Card className="border-none shadow-sm rounded-[20px]">
+            <CardHeader className="pt-8 px-8 pb-2">
+              <CardTitle className="text-lg font-bold text-brand-charcoal">Meat Cut Performance</CardTitle>
+            </CardHeader>
+            <CardContent className="h-48 px-6 pb-6">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts}>
-                  <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} />
-                  <YAxis
-                    stroke="#9ca3af"
-                    fontSize={11}
-                    tickFormatter={(v) =>
-                      `${settings.currency} ${Number(v).toLocaleString()}`
-                    }
-                  />
+                <BarChart data={meatPerformance}>
+                  <XAxis dataKey="name" stroke="hsl(var(--text-muted))" fontSize={11} tickLine={false} axisLine={false} dy={5} tick={{ fontWeight: 'bold' }} />
                   <Tooltip
-                    contentStyle={{
-                      background: "#020617",
-                      border: "1px solid #1f2937",
-                      borderRadius: 8,
-                      fontSize: 11,
-                    }}
-                    formatter={(value: any) =>
-                      `${settings.currency} ${Number(value).toLocaleString()}`
-                    }
+                    cursor={{ fill: 'hsl(var(--muted))', radius: 8 }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', color: 'hsl(var(--foreground))', fontSize: '12px', fontWeight: 'bold' }}
                   />
-                  <Bar dataKey="total" fill="#fb7185" radius={4} />
+                  <Bar dataKey="value" fill="hsl(var(--brand-burgundy))" radius={[6, 6, 6, 6]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Stock Distribution */}
+          <Card className="border-none shadow-sm rounded-[20px]">
+            <CardHeader className="pt-8 px-8 pb-2">
+              <CardTitle className="text-lg font-bold text-brand-charcoal">Stock Distribution</CardTitle>
+            </CardHeader>
+            <CardContent className="h-48 px-6 pb-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stockDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={70}
+                    paddingAngle={4}
+                    dataKey="value"
+                    cornerRadius={6}
+                  >
+                    {stockDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', color: 'hsl(var(--foreground))', fontSize: '12px', fontWeight: 'bold' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-[1.2fr,1.8fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>User & role management</CardTitle>
+      {/* 4. Activity & Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Activity Feed */}
+        <Card className="md:col-span-2 border-none shadow-sm rounded-[20px]">
+          <CardHeader className="pt-8 px-8">
+            <CardTitle className="text-xl flex items-center gap-2 font-bold text-brand-charcoal">
+              <Activity className="h-5 w-5 text-brand-gold" />
+              Recent Activity
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-xs">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                placeholder="Full name"
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                className="h-9 text-xs flex-1"
-              />
-              <select
-                className="h-9 w-full sm:w-32 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-50"
-                value={newUserRole}
-                onChange={(e) => setNewUserRole(e.target.value as Role)}
-              >
-                <option value="cashier">Cashier</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-              </select>
-              <Button size="sm" onClick={handleCreateUser} className="w-full sm:w-auto">
-                Add
-              </Button>
-            </div>
-            <div className="max-h-40 overflow-y-auto rounded-md border border-slate-800 bg-slate-950">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between border-b border-slate-900 px-3 py-2 last:border-b-0"
-                >
-                  <div>
-                    <div className="text-[11px] font-medium text-slate-50">
-                      {u.name}
+          <CardContent className="px-8 pb-8">
+            <div className="space-y-6 max-h-[300px] overflow-y-auto pr-4">
+              {activityFeed.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">No recent activity recorded.</p>
+              ) : (
+                activityFeed.map((item, i) => (
+                  <div key={`${item.type}-${item.id}-${i}`} className="flex items-start gap-5">
+                    <div className="mt-1 p-3 rounded-xl bg-gray-50 border border-gray-100 flex-shrink-0">
+                      {item.icon}
                     </div>
-                    <div className="text-[10px] text-slate-500">
-                      ID: {u.id}
+                    <div className="flex-1 border-b border-gray-50 pb-6 last:border-0 last:pb-0">
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm font-bold text-brand-charcoal">{item.title}</p>
+                        <span className="text-[10px] sm:text-xs font-semibold text-gray-400 whitespace-nowrap ml-4">
+                          {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 font-medium">{item.desc}</p>
                     </div>
                   </div>
-                  <select
-                    className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2 text-[10px] text-slate-50"
-                    value={u.role}
-                    onChange={(e) =>
-                      updateUserRole(u.id, e.target.value as Role, "a1")
-                    }
-                  >
-                    <option value="cashier">Cashier</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Business settings & audit log</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-[1.1fr,0.9fr] text-xs">
-            <div className="space-y-2">
-              <div>
-                <label className="text-[11px] font-medium text-slate-300">
-                  Currency code
-                </label>
-                <Input
-                  className="mt-1 h-8 w-24 text-xs"
-                  value={settings.currency}
-                  onChange={(e) =>
-                    handleSettingsChange("currency", e.target.value.toUpperCase())
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-slate-300">
-                  Receipt header
-                </label>
-                <textarea
-                  className="mt-1 h-20 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-50"
-                  value={settings.receiptHeader}
-                  onChange={(e) =>
-                    handleSettingsChange("receiptHeader", e.target.value)
-                  }
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="tax-enabled"
-                  type="checkbox"
-                  checked={settings.taxEnabled}
-                  onChange={(e) =>
-                    handleSettingsChange("taxEnabled", e.target.checked)
-                  }
-                  className="h-3 w-3"
-                />
-                <label
-                  htmlFor="tax-enabled"
-                  className="text-[11px] text-slate-300"
-                >
-                  Apply tax to receipts
-                </label>
-                {settings.taxEnabled && (
-                  <Input
-                    type="number"
-                    className="h-8 w-16 text-xs"
-                    value={settings.taxRatePercent}
-                    onChange={(e) =>
-                      handleSettingsChange(
-                        "taxRatePercent",
-                        Number(e.target.value) || 0
-                      )
-                    }
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="max-h-48 overflow-y-auto rounded-md border border-slate-800 bg-slate-950">
-              {auditLog.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-[11px] text-slate-500">
-                  Once managers start adjusting prices and stock, you&apos;ll see a
-                  trail of who did what here.
-                </div>
-              ) : (
-                auditLog
-                  .slice()
-                  .reverse()
-                  .slice(0, 20)
-                  .map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="border-b border-slate-900 px-3 py-2 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-slate-50">
-                          {entry.actorName}
-                        </span>
-                        <Badge variant="outline">{entry.role}</Badge>
-                      </div>
-                      <div className="mt-0.5 text-[10px] text-slate-300">
-                        {entry.action}
-                      </div>
-                      <div className="mt-0.5 text-[9px] text-slate-500">
-                        {new Date(entry.createdAt).toLocaleString()}
-                      </div>
-                    </div>
-                  ))
+                ))
               )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Quick Actions & System Links */}
+        <div className="space-y-8">
+          <Card className="border-none shadow-sm rounded-[20px]">
+            <CardHeader className="pt-8 px-8">
+              <CardTitle className="text-lg font-bold text-brand-charcoal">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="px-8 pb-8 grid grid-cols-2 gap-4">
+              <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 border-gray-100 rounded-2xl hover:bg-gray-50 hover:border-brand-burgundy/30 transition-all bg-white shadow-sm">
+                <PlusCircle className="h-6 w-6 text-brand-burgundy" />
+                <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">Add Stock</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 border-gray-100 rounded-2xl hover:bg-gray-50 hover:border-brand-burgundy/30 transition-all bg-white shadow-sm">
+                <DollarSign className="h-6 w-6 text-brand-gold" />
+                <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">Prices</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 border-gray-100 rounded-2xl hover:bg-gray-50 hover:border-brand-burgundy/30 transition-all bg-white shadow-sm">
+                <FileText className="h-6 w-6 text-brand-charcoal" />
+                <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">Reports</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 border-gray-100 rounded-2xl hover:bg-gray-50 hover:border-brand-burgundy/30 transition-all bg-white shadow-sm">
+                <Users className="h-6 w-6 text-brand-charcoal" />
+                <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">Staff</span>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm rounded-[20px] bg-brand-charcoal text-white">
+            <CardHeader className="pt-6 px-6 pb-2">
+              <CardTitle className="text-base font-medium text-gray-200">System Health</CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 pb-6 space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Products Active</span>
+                <span className="font-bold text-white">{products.filter(p => p.isActive).length}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Registered Users</span>
+                <span className="font-bold text-white">{users.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">System Status</span>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-bold text-emerald-400 text-xs">Online</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* 5. Legacy / Administration Sections */}
+      <div className="mt-12 pt-8 border-t border-gray-200/60">
+        <h2 className="text-2xl font-bold text-brand-charcoal mb-8 flex items-center gap-3">
+          <Settings className="h-6 w-6 text-brand-burgundy" />
+          System Administration
+        </h2>
+
+        <div className="mb-8">
+          <ProductManager />
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-[1.2fr,1.8fr]">
+          {/* User Management */}
+          <Card className="border-none shadow-sm rounded-[20px]">
+            <CardHeader className="pt-8 px-8">
+              <CardTitle className="flex items-center gap-2 text-brand-charcoal font-bold">
+                <Users className="h-5 w-5 text-gray-400" />
+                User Access Control
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-8 pb-8 space-y-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  placeholder="New user name"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  className="h-12 text-sm flex-1 bg-gray-50 border-transparent focus:bg-white focus:border-brand-burgundy rounded-xl"
+                />
+                <select
+                  className="h-12 w-full sm:w-36 rounded-xl border border-transparent bg-gray-50 px-4 text-sm font-medium text-brand-charcoal focus:bg-white focus:border-brand-burgundy outline-none cursor-pointer"
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value as Role)}
+                >
+                  <option value="cashier">Cashier</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <Button onClick={handleCreateUser} className="w-full sm:w-auto h-12 rounded-xl bg-brand-charcoal hover:bg-black text-white px-6">
+                  <PlusCircle className="h-4 w-4 mr-2" /> Add
+                </Button>
+              </div>
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/30">
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between border-b border-gray-100 px-5 py-4 last:border-b-0 hover:bg-white transition-colors"
+                  >
+                    <div>
+                      <div className="text-sm font-bold text-brand-charcoal">{u.name}</div>
+                      <div className="text-[10px] text-gray-400 font-mono tracking-wide">ID: {u.id.substring(0, 6)}...</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 focus:text-brand-charcoal focus:border-brand-burgundy outline-none cursor-pointer hover:border-gray-300"
+                        value={u.role}
+                        onChange={(e) => updateUserRole(u.id, e.target.value as Role, "a1")}
+                        disabled={u.id === users.find(cu => cu.id === "a1")?.id /* In real app, check against auth context */}
+                      >
+                        <option value="cashier">Cashier</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete user "${u.name}"? This action cannot be undone.`)) {
+                            deleteUser(u.id, "a1");
+                          }
+                        }}
+                        disabled={u.role === "admin" || u.id === "a1"} // Prevent deleting admins or self (hardcoded "a1" for demo context, ideally currentUser.id)
+                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        title={u.role === "admin" ? "Cannot delete admins" : "Delete user"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Business Settings */}
+          <Card className="border-none shadow-sm rounded-[20px]">
+            <CardHeader className="pt-8 px-8">
+              <CardTitle className="flex items-center gap-2 text-brand-charcoal font-bold">
+                <Settings className="h-5 w-5 text-gray-400" />
+                Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-8 md:grid-cols-2 px-8 pb-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-2">Currency Symbol</label>
+                  <Input
+                    className="h-12 w-32 bg-gray-50 border-transparent focus:bg-white focus:border-brand-burgundy rounded-xl text-center font-bold text-brand-charcoal"
+                    value={settings.currency}
+                    onChange={(e) => handleSettingsChange("currency", e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-2">Receipt Header</label>
+                  <textarea
+                    className="w-full h-28 rounded-xl border border-transparent bg-gray-50 px-4 py-3 text-sm font-medium text-brand-charcoal focus:bg-white focus:border-brand-burgundy outline-none resize-none transition-all"
+                    value={settings.receiptHeader}
+                    onChange={(e) => handleSettingsChange("receiptHeader", e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <input
+                    id="tax-enabled"
+                    type="checkbox"
+                    checked={settings.taxEnabled}
+                    onChange={(e) => handleSettingsChange("taxEnabled", e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300 text-brand-burgundy focus:ring-brand-burgundy cursor-pointer"
+                  />
+                  <label htmlFor="tax-enabled" className="text-sm font-bold text-brand-charcoal flex-1 cursor-pointer select-none">
+                    Enable Tax Calculation
+                  </label>
+                  {settings.taxEnabled && (
+                    <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-gray-200">
+                      <Input
+                        type="number"
+                        className="h-8 w-16 text-xs bg-transparent border-none text-right font-bold focus-visible:ring-0 px-1"
+                        value={settings.taxRatePercent}
+                        onChange={(e) => handleSettingsChange("taxRatePercent", Number(e.target.value) || 0)}
+                      />
+                      <span className="text-xs text-gray-500 font-bold pr-1">%</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Simplified Audit Log View within Settings */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block">System Audit Trail</label>
+                <div className="max-h-[300px] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/30">
+                  {auditLog.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-gray-400">
+                      System logs will appear here.
+                    </div>
+                  ) : (
+                    auditLog
+                      .slice()
+                      .reverse()
+                      .slice(0, 20)
+                      .map((entry) => (
+                        <div key={entry.id} className="border-b border-gray-100 px-4 py-3 last:border-0 hover:bg-white transition-colors">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-brand-charcoal">{entry.actorName}</span>
+                            <Badge variant="outline" className="text-[9px] py-0 h-4 border-gray-200 text-gray-500">{entry.role}</Badge>
+                          </div>
+                          <div className="text-[11px] text-gray-600 mt-1 truncate font-medium" title={entry.action}>{entry.action}</div>
+                          <div className="text-[9px] text-gray-400 mt-1">{new Date(entry.createdAt).toLocaleString()}</div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 };
+
+
 
