@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Check, ShieldCheck, Zap } from "lucide-react";
 
 export const LoginPage = () => {
   const users = useAppStore((s) => s.users);
@@ -26,84 +27,138 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 px-3 sm:px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid w-full max-w-4xl gap-6 sm:gap-8 md:grid-cols-[1.1fr,0.9fr] items-center"
-      >
-        <div className="space-y-6 hidden sm:block">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              Eden Top
-            </h1>
-            <p className="mt-2 max-w-md text-sm text-slate-300">
-              Fast, focused point-of-sale for busy butcheries. Optimised for quick weights,
-              clean receipts, and clear roles for your team.
-            </p>
+    <div className="flex min-h-screen bg-brand-offwhite font-sans text-brand-charcoal">
+
+      {/* Left: Brand Presentation */}
+      <div className="hidden lg:flex w-5/12 relative bg-brand-charcoal flex-col justify-between p-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-charcoal to-[#000000] z-0" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-brand-burgundy rounded-full blur-3xl opacity-20" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-brand-gold rounded-full blur-3xl opacity-10" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-burgundy to-red-900 shadow-xl text-white font-bold text-2xl">
+              E
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-white">EDEN TOP</span>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-            <Badge>Cashier-first workflow</Badge>
-            <Badge variant="outline">Live stock tracking</Badge>
-            <Badge variant="success">Manager approvals</Badge>
-            <Badge variant="warning">Audit ready</Badge>
+          <h1 className="text-5xl font-bold text-white leading-tight mb-6">
+            Everything<br />
+            <span className="text-brand-burgundy">Premium</span>.
+          </h1>
+          <p className="text-gray-400 text-lg max-w-sm">
+            The professional point-of-sale system designed for high-volume, quality-focused butcheries.
+          </p>
+        </div>
+
+        <div className="relative z-10 space-y-6">
+          <div className="flex items-center gap-4 text-white/90">
+            <div className="p-2 rounded-lg bg-white/10 backdrop-blur-md">
+              <Zap className="h-5 w-5 text-brand-gold" />
+            </div>
+            <div>
+              <p className="font-semibold">Fast Workflows</p>
+              <p className="text-sm text-gray-400">Optimized for quick weight entry</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-white/90">
+            <div className="p-2 rounded-lg bg-white/10 backdrop-blur-md">
+              <ShieldCheck className="h-5 w-5 text-brand-gold" />
+            </div>
+            <div>
+              <p className="font-semibold">Total Control</p>
+              <p className="text-sm text-gray-400">Live inventory & audit trails</p>
+            </div>
           </div>
         </div>
 
-        <Card className="border-red-900/40 bg-slate-950/90 shadow-2xl shadow-red-900/30 w-full">
-          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
-            <div className="mb-2">
-              <h2 className="text-sm sm:text-base font-semibold text-slate-50">
-                Sign in to start selling
-              </h2>
-              <p className="text-xs text-slate-400">
-                Tap your user and enter PIN. Roles control what you can see and do.
-              </p>
-            </div>
+        <div className="relative z-10 text-xs text-gray-500">
+          © 2026 Eden Top Butchery Systems. v2.0
+        </div>
+      </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {users.map((user) => (
-                <button
-                  key={user.id}
-                  type="button"
-                  onClick={() => setSelectedUserId(user.id)}
-                  className={`flex flex-col items-start rounded-lg border px-2 sm:px-3 py-2 text-left text-[10px] sm:text-xs transition ${
-                    selectedUserId === user.id
-                      ? "border-red-500 bg-red-900/40"
-                      : "border-slate-700 bg-slate-900/60 hover:border-red-600 hover:bg-slate-900"
-                  }`}
+      {/* Right: Login Form */}
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 relative bg-brand-offwhite">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md space-y-8"
+        >
+          <div className="text-center lg:text-left">
+            <h2 className="text-3xl font-bold text-brand-charcoal">Welcome back</h2>
+            <p className="mt-2 text-gray-500">Please select your profile to sign in.</p>
+          </div>
+
+          <Card className="border-none shadow-xl bg-white p-2">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2 mb-6">
+                {users.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => setSelectedUserId(user.id)}
+                    className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${selectedUserId === user.id
+                        ? "border-brand-burgundy bg-brand-burgundy/5 ring-1 ring-brand-burgundy"
+                        : "border-gray-100 hover:border-brand-burgundy/30 hover:bg-gray-50"
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${selectedUserId === user.id ? "bg-brand-burgundy text-white" : "bg-gray-100 text-gray-600 group-hover:bg-white"
+                        }`}>
+                        {user.name.charAt(0)}
+                      </div>
+                      <div className="text-left">
+                        <div className={`font-semibold text-sm ${selectedUserId === user.id ? "text-brand-burgundy" : "text-brand-charcoal"}`}>
+                          {user.name}
+                        </div>
+                        <div className="text-xs text-gray-400 uppercase tracking-wider">{user.role}</div>
+                      </div>
+                    </div>
+                    {selectedUserId === user.id && <Check className="h-5 w-5 text-brand-burgundy" />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                    Security PIN
+                  </label>
+                  <Input
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className="text-center text-2xl tracking-[0.5em] h-14 font-mono text-brand-charcoal placeholder:text-gray-200 bg-gray-50 focus:bg-white"
+                    placeholder="••••"
+                    maxLength={4}
+                  />
+                </div>
+
+                <Button
+                  className="w-full h-12 text-base shadow-lg shadow-brand-burgundy/20"
+                  disabled={!selectedUserId}
+                  onClick={handleLogin}
                 >
-                  <span className="font-medium text-slate-50 text-[11px] sm:text-sm">{user.name}</span>
-                  <span className="mt-0.5 text-[9px] sm:text-[10px] uppercase tracking-wide text-slate-400">
-                    {user.role}
-                  </span>
-                </button>
-              ))}
-            </div>
+                  Enter POS Terminal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-2">
-              <label className="text-[11px] sm:text-xs font-medium text-slate-300">
-                PIN (demo only, not validated)
-              </label>
-              <Input
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="text-base sm:text-lg tracking-[0.4em] h-10 sm:h-11"
-                placeholder="••••"
-              />
+          <div className="flex justify-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+              System Online
             </div>
+            <span className="text-gray-300">•</span>
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-brand-gold"></div>
+              Database Synced
+            </div>
+          </div>
 
-            <Button
-              className="mt-2 h-10 sm:h-11 w-full text-xs sm:text-sm font-semibold tracking-wide"
-              disabled={!selectedUserId}
-              onClick={handleLogin}
-            >
-              Enter POS
-            </Button>
-          </CardContent>
-        </Card>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };

@@ -54,46 +54,54 @@ export const WholesaleDesk = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-6 py-4 sm:py-8">
+    <div className="space-y-6 px-6 py-8 max-w-[1200px] mx-auto bg-brand-offwhite min-h-screen">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-50">
+        <h1 className="text-3xl font-bold text-brand-charcoal tracking-tight">
           Wholesale / Market Sales
         </h1>
-        <p className="mt-1 text-xs sm:text-sm text-slate-400">
+        <p className="mt-1 text-sm text-gray-500">
           Daily branch summary – cash & M-Pesa only
         </p>
       </div>
 
       {/* Error message */}
       {error && (
-        <div className="rounded-md bg-red-900/20 p-2 sm:p-3 text-xs sm:text-sm text-red-400 border border-red-700">
+        <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600 border border-red-200 shadow-sm">
           Error: {error}
         </div>
       )}
 
       {/* Loading state */}
       {loading && (
-        <div className="text-center text-slate-400 py-6 sm:py-8 text-sm">
+        <div className="text-center text-gray-400 py-8 text-sm">
           Loading summaries...
         </div>
       )}
 
       {/* Main Content */}
       {!loading && (
-        <div className="space-y-4 sm:space-y-6">
-          {/* 1. Add New Summary */}
-          <WholesaleSummaryCard onSave={handleAddSummary} />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,1.2fr] gap-8">
+          <div className="space-y-6">
+            {/* 1. Add New Summary */}
+            <WholesaleSummaryCard onSave={handleAddSummary} />
+
+            {/* 3. Generate Report */}
+            {summaries.length > 0 && (
+              <TextReportGenerator summaries={summaries} />
+            )}
+          </div>
 
           {/* 2. View Recorded Summaries */}
-          {summaries.length > 0 && (
-            <WholesaleSummaryDisplay summaries={summaries} />
-          )}
-
-          {/* 3. Generate Report */}
-          {summaries.length > 0 && (
-            <TextReportGenerator summaries={summaries} />
-          )}
+          <div>
+            {summaries.length > 0 ? (
+              <WholesaleSummaryDisplay summaries={summaries} />
+            ) : (
+              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-400">
+                No summaries recorded yet.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

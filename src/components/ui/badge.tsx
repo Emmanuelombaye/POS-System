@@ -14,14 +14,14 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         {
-          "border-red-500/30 bg-red-900/40 text-red-100": variant === "default",
-          "border-slate-600 bg-slate-900/60 text-slate-200":
+          "border-transparent bg-brand-burgundy text-white hover:bg-brand-burgundy/80": variant === "default",
+          "text-brand-charcoal border-gray-300":
             variant === "outline",
-          "border-emerald-500/40 bg-emerald-900/50 text-emerald-100":
+          "border-transparent bg-emerald-100/80 text-emerald-800":
             variant === "success",
-          "border-amber-400/40 bg-amber-900/60 text-amber-100":
+          "border-transparent bg-amber-100/80 text-amber-800":
             variant === "warning",
         },
         className

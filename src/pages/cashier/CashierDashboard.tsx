@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/utils/format";
-import { Receipt, Trash2 } from "lucide-react";
+import { Receipt, Trash2, ShoppingCart, Plus, Minus, Search } from "lucide-react";
 
 const QUICK_WEIGHTS = [0.25, 0.5, 1];
 
@@ -27,6 +27,7 @@ export const CashierDashboard = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [weightKg, setWeightKg] = useState<number>(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const subtotal = useMemo(
     () =>
@@ -71,285 +72,242 @@ export const CashierDashboard = () => {
     }
   };
 
+  const filteredProducts = products
+    .filter((p) => p.isActive)
+    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
   return (
-    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)] gap-3 bg-slate-950 px-3 py-3 md:gap-4 md:px-4 md:py-4">
-      {/* LEFT: product grid */}
-      <div className="flex-1 lg:flex-[1.6] rounded-xl border border-slate-800 bg-slate-950/90 p-3 md:p-4 min-h-[400px] lg:min-h-0">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold tracking-tight">
-              Products
-            </h2>
-            <p className="text-[11px] text-slate-400">
-              Tap a cut, choose weight, hit add. Designed for speed.
-            </p>
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-80px)] gap-6 p-4 lg:p-8 bg-brand-offwhite max-w-[1920px] mx-auto">
+      {/* LEFT: Product Grid */}
+      <div className="flex-1 lg:flex-[1.6] flex flex-col gap-6 min-h-[500px]">
+
+        {/* Search & Header */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-[20px] shadow-sm border-none">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="p-3 bg-gray-50 rounded-xl text-brand-burgundy">
+              <Search className="h-5 w-5" />
+            </div>
+            <Input
+              placeholder="Search cuts..."
+              className="max-w-xs border-none bg-transparent shadow-none focus-visible:ring-0 px-0 h-auto text-base placeholder:text-[hsl(var(--text-muted))] font-bold text-brand-charcoal"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <Badge variant="outline">
-            Live stock •{" "}
-            <span className="ml-1 text-emerald-300">
-              {products.reduce((sum, p) => sum + p.stockKg, 0)} kg
-            </span>
-          </Badge>
+          <div className="flex items-center gap-3 text-sm font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-xl">
+            <div className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </div>
+            Live Stock: <span className="font-bold text-brand-charcoal">{products.reduce((sum, p) => sum + p.stockKg, 0).toFixed(0)} kg</span>
+          </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {products
-            .filter((p) => p.isActive)
-            .map((product) => {
-              const low = product.stockKg <= product.lowStockThresholdKg;
-              const isSelected = selectedProduct?.id === product.id;
-              return (
-                <motion.button
-                  key={product.id}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setSelectedProduct(product)}
-                  className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition ${
-                    isSelected
-                      ? "border-red-500 bg-red-900/40 shadow-sm shadow-red-900/40"
-                      : "border-slate-700 bg-slate-900/60 hover:border-red-600 hover:bg-slate-900"
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-2 pb-2">
+          {filteredProducts.map((product) => {
+            const low = product.stockKg <= product.lowStockThresholdKg;
+            const isSelected = selectedProduct?.id === product.id;
+            return (
+              <motion.button
+                key={product.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedProduct(product)}
+                className={`flex flex-col items-start justify-between rounded-[20px] p-5 text-left transition-all duration-200 h-36 relative overflow-hidden group ${isSelected
+                  ? "bg-brand-burgundy text-white shadow-xl shadow-brand-burgundy/30 ring-0"
+                  : "bg-white text-brand-charcoal shadow-sm hover:shadow-card hover:-translate-y-1"
                   }`}
-                >
-                  <span className="text-[11px] uppercase tracking-wide text-slate-400">
+              >
+                <div className="relative z-10 w-full">
+                  <span className={`text-[10px] uppercase tracking-widest font-bold ${isSelected ? "text-white/70" : "text-gray-400"}`}>
                     {product.category}
                   </span>
-                  <span className="mt-0.5 text-[13px] font-semibold text-slate-50">
+                  <h3 className={`mt-1 text-sm font-bold leading-tight ${isSelected ? "text-white" : "text-brand-charcoal"}`}>
                     {product.name}
+                  </h3>
+                </div>
+
+                <div className="relative z-10 w-full flex items-end justify-between mt-auto">
+                  <span className={`text-sm font-bold ${isSelected ? "text-white/90" : "text-[hsl(var(--text-secondary))]"}`}>
+                    {formatCurrency(product.pricePerKg, settings)} <span className="text-[10px] opacity-70">/kg</span>
                   </span>
-                  <span className="mt-1 text-[11px] text-slate-300">
-                    {formatCurrency(product.pricePerKg, settings)}/kg
-                  </span>
-                  <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
-                    <span>{product.stockKg.toFixed(1)} kg</span>
-                    {low && (
-                      <span className="rounded-full bg-amber-900/60 px-1.5 py-0.5 text-[9px] text-amber-200">
-                        Low
-                      </span>
-                    )}
-                  </div>
-                </motion.button>
-              );
-            })}
+                  <Badge variant={low ? "warning" : isSelected ? "default" : "outline"} className={`text-[9px] px-2 h-5 rounded-md ${isSelected ? "bg-white/20 text-white backdrop-blur-sm" : "bg-gray-100 text-gray-600"}`}>
+                    {product.stockKg.toFixed(1)}kg
+                  </Badge>
+                </div>
+
+                {/* Decorative background element for luxury feel */}
+                <div className={`absolute -bottom-6 -right-6 w-24 h-24 rounded-full opacity-[0.08] ${isSelected ? "bg-white" : "bg-brand-burgundy"}`} />
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
-      {/* RIGHT: cart / payment / receipt */}
-      <div className="flex w-full lg:w-[420px] flex-1 lg:flex-[1] flex-col gap-3 md:lg:w-[460px]">
-        <Card className="h-auto lg:h-[52%] lg:min-h-[260px]">
-          <CardHeader>
-            <CardTitle>Cart</CardTitle>
-          </CardHeader>
-          <CardContent className="flex h-full flex-col gap-2">
-            {/* Weight controls */}
-            <div className="flex items-end gap-2">
-              <div className="flex-1 space-y-1">
-                <label className="text-[11px] font-medium text-slate-300">
-                  Weight (kg)
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                />
+      {/* RIGHT: Cart & Checkout */}
+      <div className="flex w-full lg:w-[480px] flex-col gap-6">
+
+        {/* 1. Weight & Add Control */}
+        <Card className="shadow-sm border-none rounded-[20px]">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Configure Item</span>
+              {selectedProduct ? (
+                <Badge className="bg-brand-burgundy text-white px-3 py-1 rounded-lg text-xs">{selectedProduct.name}</Badge>
+              ) : (
+                <span className="text-xs text-gray-400 italic font-medium">Select a product first</span>
+              )}
+            </div>
+
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <div className="relative bg-gray-50 rounded-2xl border border-transparent focus-within:bg-white focus-within:border-brand-burgundy transition-colors">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={weightKg}
+                    onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
+                    className="h-16 text-3xl font-bold text-brand-charcoal pl-6 pr-12 border-none bg-transparent shadow-none focus-visible:ring-0"
+                  />
+                  <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">kg</span>
+                </div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 {QUICK_WEIGHTS.map((w) => (
                   <Button
                     key={w}
                     type="button"
-                    size="sm"
                     variant="outline"
                     onClick={() => handleQuickWeight(w)}
-                    className="px-2 text-[11px]"
+                    className="h-16 w-14 flex flex-col items-center justify-center gap-0.5 border-gray-100 rounded-2xl bg-white hover:border-brand-burgundy/30 hover:bg-gray-50"
                   >
-                    {w}kg
+                    <span className="text-lg font-bold text-brand-charcoal">{w}</span>
+                    <span className="text-[9px] text-gray-400 uppercase font-bold">kg</span>
                   </Button>
                 ))}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!selectedProduct || weightKg <= 0}
-                onClick={handleAddToCart}
-              >
-                Add
-              </Button>
             </div>
 
-            {/* Cart list */}
-            <div className="mt-1 flex-1 space-y-1 overflow-y-auto rounded-md border border-slate-800 bg-slate-950/80 p-2 text-xs">
-              {cashierCart.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-[11px] text-slate-500">
-                  Cart is empty. Select a product, set weight, then add.
-                </div>
-              ) : (
-                cashierCart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 hover:bg-slate-900"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-medium text-slate-50">
-                        {item.productName}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {item.weightKg.toFixed(2)} kg @{" "}
-                        {formatCurrency(item.pricePerKg, settings)}/kg
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        value={item.weightKg}
-                        onChange={(e) =>
-                          updateCartItemWeight(
-                            item.id,
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        className="h-8 w-20 text-[11px]"
-                      />
-                      <span className="w-18 text-right text-[11px] font-semibold text-slate-50">
-                        {formatCurrency(
-                          item.pricePerKg * item.weightKg,
-                          settings
-                        )}
-                      </span>
-                      <button
-                        className="ml-1 rounded-full p-1 text-slate-500 hover:bg-red-950 hover:text-red-200"
-                        onClick={() => removeCartItem(item.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <Button
+              size="lg"
+              className="w-full h-14 text-base font-bold shadow-lg shadow-brand-burgundy/20 rounded-xl bg-brand-burgundy hover:bg-red-900"
+              disabled={!selectedProduct || weightKg <= 0}
+              onClick={handleAddToCart}
+            >
+              <Plus className="mr-2 h-5 w-5" /> Add to Order
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="h-[48%] min-h-[220px]">
-          <CardHeader>
-            <CardTitle>Payment & Receipt</CardTitle>
-          </CardHeader>
-          <CardContent className="flex h-full flex-col gap-2">
-            <div className="grid grid-cols-[1.1fr,0.9fr] gap-3 text-xs">
-              <div className="space-y-2">
-                <div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <span>Payment method</span>
-                  </div>
-                  <div className="mt-1 flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        cashierPaymentMethod === "cash"
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={() => setPaymentMethod("cash")}
-                      className="flex-1 text-[11px]"
-                    >
-                      Cash
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        cashierPaymentMethod === "mpesa"
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={() => setPaymentMethod("mpesa")}
-                      className="flex-1 text-[11px]"
-                    >
-                      M-Pesa
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-1 flex justify-between text-[11px]">
-                    <span className="font-medium text-slate-300">
-                      Discount
-                    </span>
-                    <span className="text-slate-500">
-                      Manager approval required
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="KES"
-                      className="h-9 text-[11px]"
-                      onChange={(e) =>
-                        handleDiscountChange(
-                          "amount",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                    />
-                    <Input
-                      type="number"
-                      placeholder="%"
-                      className="h-9 w-20 text-[11px]"
-                      onChange={(e) =>
-                        handleDiscountChange(
-                          "percent",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  disabled={cashierCart.length === 0}
-                  onClick={handleCompleteSale}
-                  className="mt-1 flex items-center justify-center gap-2 text-sm font-semibold"
-                >
-                  <Receipt className="h-4 w-4" />
-                  Complete Sale
-                </Button>
+        {/* 2. Current Order List */}
+        <Card className="flex-1 min-h-[300px] flex flex-col shadow-sm border-none overflow-hidden rounded-[20px]">
+          <CardHeader className="bg-white p-6 pb-2">
+            <CardTitle className="flex items-center gap-3 text-brand-charcoal text-lg font-bold">
+              <div className="p-2 bg-gray-50 rounded-xl text-brand-burgundy">
+                <ShoppingCart className="h-5 w-5" />
               </div>
+              Current Order
+              <Badge className="ml-auto bg-brand-charcoal text-white rounded-lg px-2.5 py-0.5">{cashierCart.length}</Badge>
+            </CardTitle>
+          </CardHeader>
 
-              <div className="flex flex-col justify-between rounded-md border border-slate-800 bg-slate-950/80 p-2">
-                <div className="space-y-1 text-[11px]">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Subtotal</span>
-                    <span className="font-medium">
-                      {formatCurrency(subtotal, settings)}
-                    </span>
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-white">
+            {cashierCart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-300 space-y-4 opacity-60">
+                <div className="p-6 bg-gray-50 rounded-full">
+                  <ShoppingCart className="h-10 w-10 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium">Cart is empty</p>
+              </div>
+            ) : (
+              cashierCart.map((item) => (
+                <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-colors group">
+                  <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center font-bold text-brand-burgundy shadow-sm text-lg">
+                    {item.productName.charAt(0)}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Discount</span>
-                    <span className="font-medium text-emerald-300">
-                      {cashierDiscount
-                        ? cashierDiscount.type === "amount"
-                          ? `- ${formatCurrency(
-                              cashierDiscount.value,
-                              settings
-                            )}`
-                          : `- ${cashierDiscount.value.toFixed(1)}%`
-                        : "-"}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-brand-charcoal text-sm truncate">{item.productName}</h4>
+                    <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-muted))] mt-1 font-bold">
+                      <span>{formatCurrency(item.pricePerKg, settings)}/kg</span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex justify-between border-t border-slate-800 pt-1 text-[13px] font-semibold text-slate-50">
-                    <span>Total</span>
-                    <span>{formatCurrency(total, settings)}</span>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-white rounded-lg border border-gray-200 h-9 px-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.weightKg}
+                        onChange={(e) => updateCartItemWeight(item.id, parseFloat(e.target.value) || 0)}
+                        className="w-12 h-full border-none text-center text-xs p-0 focus-visible:ring-0 font-bold text-brand-charcoal"
+                      />
+                      <span className="text-[9px] text-gray-400 pr-2 font-medium">kg</span>
+                    </div>
+                    <div className="text-right w-16">
+                      <p className="font-bold text-brand-charcoal">{formatCurrency(item.pricePerKg * item.weightKg, settings)}</p>
+                    </div>
+                    <button
+                      onClick={() => removeCartItem(item.id)}
+                      className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="mt-2 border-t border-dashed border-slate-800 pt-1 text-[9px] text-slate-500">
-                  Receipt preview only – printing can be wired to your hardware
-                  later.
+              ))
+            )}
+          </div>
+
+          {/* 3. Totals & Checkout */}
+          <div className="bg-gray-50/50 p-6 border-t border-gray-100 space-y-6">
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm font-bold text-[hsl(var(--text-muted))]">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal, settings)}</span>
+              </div>
+              {cashierDiscount && (
+                <div className="flex justify-between text-sm font-bold text-emerald-600">
+                  <span>Discount</span>
+                  <span>
+                    {cashierDiscount.type === "amount"
+                      ? `- ${formatCurrency(cashierDiscount.value, settings)}`
+                      : `- ${cashierDiscount.value.toFixed(1)}%`}
+                  </span>
                 </div>
+              )}
+              <div className="flex justify-between text-2xl font-bold text-brand-charcoal pt-4 border-t border-gray-200 dashed">
+                <span>Total</span>
+                <span>{formatCurrency(total, settings)}</span>
               </div>
             </div>
-          </CardContent>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant={cashierPaymentMethod === "cash" ? "default" : "outline"}
+                onClick={() => setPaymentMethod("cash")}
+                className={`h-12 rounded-xl border-gray-200 font-bold ${cashierPaymentMethod === "cash" ? "bg-brand-charcoal text-white hover:bg-black" : "bg-white text-gray-600"}`}
+              >
+                Cash
+              </Button>
+              <Button
+                variant={cashierPaymentMethod === "mpesa" ? "default" : "outline"}
+                onClick={() => setPaymentMethod("mpesa")}
+                className={`h-12 rounded-xl border-gray-200 font-bold ${cashierPaymentMethod === "mpesa" ? "bg-green-600 text-white hover:bg-green-700 border-none" : "bg-white text-gray-600"}`}
+              >
+                M-Pesa
+              </Button>
+            </div>
+
+            <Button
+              size="lg"
+              className="w-full h-14 text-lg font-bold shadow-xl shadow-brand-burgundy/25 rounded-xl bg-brand-burgundy hover:bg-red-900"
+              disabled={cashierCart.length === 0}
+              onClick={handleCompleteSale}
+            >
+              <Receipt className="mr-2 h-5 w-5" />
+              Pay {formatCurrency(total, settings)}
+            </Button>
+          </div>
         </Card>
       </div>
     </div>

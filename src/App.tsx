@@ -6,6 +6,7 @@ import { ManagerDashboard } from "@/pages/manager/ManagerDashboard";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { WholesaleDesk } from "@/components/wholesale/WholesaleDesk";
 import { useAppStore } from "@/store/appStore";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 const RequireRole = ({
   role,
@@ -27,44 +28,46 @@ const RequireRole = ({
 
 export const App = () => {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<RootLayout />}>
-        <Route
-          path="/cashier"
-          element={
-            <RequireRole role="cashier">
-              <CashierDashboard />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/manager"
-          element={
-            <RequireRole role="manager">
-              <ManagerDashboard />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <RequireRole role="admin">
-              <AdminDashboard />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/admin/wholesale"
-          element={
-            <RequireRole role="admin">
-              <WholesaleDesk />
-            </RequireRole>
-          }
-        />
-      </Route>
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RootLayout />}>
+          <Route
+            path="/cashier"
+            element={
+              <RequireRole role="cashier">
+                <CashierDashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/manager"
+            element={
+              <RequireRole role="manager">
+                <ManagerDashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <RequireRole role="admin">
+                <AdminDashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/wholesale"
+            element={
+              <RequireRole role="admin">
+                <WholesaleDesk />
+              </RequireRole>
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </ThemeProvider>
   );
 };
 

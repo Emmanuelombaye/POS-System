@@ -10,7 +10,7 @@ export interface Product {
   id: ProductId;
   name: string;
   code: string;
-  category: "beef" | "goat" | "chicken" | "offal" | "processed";
+  category: "beef" | "goat" | "offal" | "processed";
   pricePerKg: number;
   stockKg: number;
   lowStockThresholdKg: number;
@@ -92,6 +92,10 @@ export interface AppState {
   setPaymentMethod: (method: PaymentMethod) => void;
   completeSale: () => Transaction | undefined;
 
+  addProduct: (product: Product, actorId: UserId) => void;
+  updateProduct: (productId: string, updates: Partial<Product>, actorId: UserId) => void;
+  deleteProduct: (productId: string, actorId: UserId) => void;
+
   updateProductPrice: (productId: string, pricePerKg: number, managerId: UserId) => void;
   updateProductStock: (productId: string, stockKg: number, actorId: UserId) => void;
   upsertProduct: (product: Product, actorId: UserId) => void;
@@ -99,6 +103,7 @@ export interface AppState {
 
   addUser: (user: User, actorId: UserId) => void;
   updateUserRole: (userId: UserId, role: Role, actorId: UserId) => void;
+  deleteUser: (userId: UserId, actorId: UserId) => void;
 
   updateSettings: (settings: Partial<BusinessSettings>, actorId: UserId | "system") => void;
 }
@@ -124,16 +129,7 @@ const initialProducts: Product[] = [
     lowStockThresholdKg: 10,
     isActive: true,
   },
-  {
-    id: "chicken-whole",
-    name: "Chicken - Whole",
-    code: "CH-WHOLE",
-    category: "chicken",
-    pricePerKg: 520,
-    stockKg: 40,
-    lowStockThresholdKg: 8,
-    isActive: true,
-  },
+
   {
     id: "liver-beef",
     name: "Beef Liver",
@@ -154,16 +150,7 @@ const initialProducts: Product[] = [
     lowStockThresholdKg: 7,
     isActive: true,
   },
-  {
-    id: "sausages-beef",
-    name: "Beef Sausages",
-    code: "BF-SAUS",
-    category: "processed",
-    pricePerKg: 900,
-    stockKg: 20,
-    lowStockThresholdKg: 4,
-    isActive: true,
-  },
+
 ];
 
 const initialUsers: User[] = [
@@ -182,7 +169,12 @@ const initialSettings: BusinessSettings = {
   theme: "dark",
 };
 
-const generateId = () => crypto.randomUUID();
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'id-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+};
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -305,6 +297,82 @@ export const useAppStore = create<AppState>()(
         }));
 
         return tx;
+      },
+
+      addProduct: (product, actorId) => {
+        set((state) => {
+          const actor = state.users.find((u) => u.id === actorId);
+          if (!actor || actor.role !== "admin") return state; // Only admins
+
+          return {
+            products: [...state.products, product],
+            auditLog: [
+              ...state.auditLog,
+              {
+                id: generateId(),
+                actorId,
+                actorName: actor.name,
+                role: actor.role,
+                action: `Added product: ${product.name}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        });
+      },
+
+      updateProduct: (productId, updates, actorId) => {
+        set((state) => {
+          const actor = state.users.find((u) => u.id === actorId);
+          if (!actor || actor.role !== "admin") return state; // Only admins
+
+          const product = state.products.find((p) => p.id === productId);
+          if (!product) return state;
+
+          return {
+            products: state.products.map((p) =>
+              p.id === productId ? { ...p, ...updates } : p
+            ),
+            auditLog: [
+              ...state.auditLog,
+              {
+                id: generateId(),
+                actorId,
+                actorName: actor.name,
+                role: actor.role,
+                action: `Updated product: ${product.name}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        });
+      },
+
+      deleteProduct: (productId, actorId) => {
+        set((state) => {
+          const actor = state.users.find((u) => u.id === actorId);
+          if (!actor || actor.role !== "admin") return state; // Only admins
+
+          const product = state.products.find((p) => p.id === productId);
+          if (!product) return state;
+
+          return {
+            products: state.products.filter((p) => p.id !== productId),
+            // Also remove from cart if present
+            cashierCart: state.cashierCart.filter((item) => item.productId !== productId),
+            auditLog: [
+              ...state.auditLog,
+              {
+                id: generateId(),
+                actorId,
+                actorName: actor.name,
+                role: actor.role,
+                action: `Deleted product: ${product.name}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        });
       },
 
       updateProductPrice: (productId, pricePerKg, managerId) => {
@@ -430,6 +498,45 @@ export const useAppStore = create<AppState>()(
                 actorName: actor?.name ?? "Unknown",
                 role: actor?.role ?? "admin",
                 action: `Changed role for ${user?.name ?? userId} to ${role}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        });
+      },
+
+      deleteUser: (userId, actorId) => {
+        set((state) => {
+          const actor = state.users.find((u) => u.id === actorId);
+          const targetUser = state.users.find((u) => u.id === userId);
+
+          // Validation
+          if (!actor || actor.role !== "admin") {
+            console.warn("Permission denied: Only admins can delete users.");
+            return state;
+          }
+          if (userId === actorId) {
+            console.warn("Operation denied: Admins cannot delete themselves.");
+            return state;
+          }
+          if (targetUser?.role === "admin") {
+            console.warn("Operation denied: Admins cannot delete other admins.");
+            return state;
+          }
+          if (!targetUser) {
+            return state;
+          }
+
+          return {
+            users: state.users.filter((u) => u.id !== userId),
+            auditLog: [
+              ...state.auditLog,
+              {
+                id: generateId(),
+                actorId,
+                actorName: actor?.name ?? "Unknown",
+                role: actor.role,
+                action: `Deleted user ${targetUser.name} (${targetUser.role})`,
                 createdAt: new Date().toISOString(),
               },
             ],

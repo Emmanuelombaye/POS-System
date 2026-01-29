@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDateTime, summarizeTransactionsByDay } from "@/utils/format";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Settings, TrendingUp, AlertTriangle } from "lucide-react";
 
 export const ManagerDashboard = () => {
   const { products, transactions, users, settings, updateProductPrice } = useAppStore();
@@ -28,35 +29,49 @@ export const ManagerDashboard = () => {
   );
 
   return (
-    <div className="space-y-3 sm:space-y-4 px-2 sm:px-4 py-3 sm:py-4">
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-[1.7fr,1.3fr]">
+    <div className="space-y-6 px-4 py-8 max-w-[1600px] mx-auto">
+
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-brand-charcoal tracking-tight">Manager Overview</h1>
+        <p className="text-sm text-gray-500 mt-1">Daily operations and price control.</p>
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-[1.7fr,1.3fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Sales performance</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-brand-charcoal">
+              <TrendingUp className="h-5 w-5 text-brand-burgundy" />
+              Sales Performance
+            </CardTitle>
           </CardHeader>
-          <CardContent className="h-48 sm:h-64">
+          <CardContent className="h-64">
             {dailyData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-xs text-slate-500">
+              <div className="flex h-full items-center justify-center text-xs text-gray-400">
                 No sales recorded yet. Cashiers&apos; transactions will appear here.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dailyData}>
-                  <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis
-                    stroke="#9ca3af"
+                    stroke="#94a3b8"
                     fontSize={11}
                     tickFormatter={(v) =>
                       `${settings.currency} ${Number(v).toLocaleString()}`
                     }
+                    tickLine={false}
+                    axisLine={false}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#020617",
-                      border: "1px solid #1f2937",
-                      borderRadius: 8,
-                      fontSize: 11,
+                      background: "#1C1C1C",
+                      border: "none",
+                      borderRadius: 12,
+                      fontSize: 12,
+                      color: "#F8F8F8"
                     }}
+                    itemStyle={{ color: "#F8F8F8" }}
                     formatter={(value: any) =>
                       `${settings.currency} ${Number(value).toLocaleString()}`
                     }
@@ -64,9 +79,10 @@ export const ManagerDashboard = () => {
                   <Line
                     type="monotone"
                     dataKey="total"
-                    stroke="#f97373"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
+                    stroke="#7A1E1E"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "#7A1E1E" }}
+                    activeDot={{ r: 6, stroke: "#C9A24D", strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -76,24 +92,27 @@ export const ManagerDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Low stock alerts</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-brand-charcoal">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Low Stock Alerts
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 sm:space-y-2 text-[10px] sm:text-xs">
+          <CardContent className="space-y-2 text-xs">
             {lowStock.length === 0 ? (
-              <div className="rounded-md border border-emerald-700/60 bg-emerald-950/60 px-3 py-2 text-emerald-100">
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-emerald-800 font-medium">
                 All tracked products are above their minimum levels.
               </div>
             ) : (
               lowStock.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-md border border-amber-700/50 bg-amber-950/40 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50 px-3 py-3"
                 >
                   <div>
-                    <div className="text-[11px] font-semibold text-amber-100">
+                    <div className="text-[12px] font-bold text-amber-900">
                       {p.name}
                     </div>
-                    <div className="text-[10px] text-amber-200/90">
+                    <div className="text-[10px] text-amber-800/80 mt-0.5">
                       {p.stockKg.toFixed(1)} kg in stock • min {p.lowStockThresholdKg} kg
                     </div>
                   </div>
@@ -105,19 +124,22 @@ export const ManagerDashboard = () => {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1.4fr,1.6fr]">
+      <div className="grid gap-6 md:grid-cols-[1.4fr,1.6fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Price management</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-brand-charcoal">
+              <Settings className="h-5 w-5 text-gray-400" />
+              Price Management
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-xs">
+          <CardContent className="space-y-4 text-xs">
             <div className="flex gap-2">
               <select
-                className="h-9 flex-1 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-50"
+                className="h-11 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-xs text-brand-charcoal focus:border-brand-burgundy outline-none transition-shadow"
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
               >
-                <option value="">Select product…</option>
+                <option value="">Select product to update...</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({formatCurrency(p.pricePerKg, settings)}/kg)
@@ -127,7 +149,7 @@ export const ManagerDashboard = () => {
               <Input
                 type="number"
                 placeholder="New price /kg"
-                className="h-9 w-32 text-xs"
+                className="h-11 w-32 text-xs"
                 value={newPrice}
                 onChange={(e) =>
                   setNewPrice(e.target.value ? Number(e.target.value) : "")
@@ -135,26 +157,26 @@ export const ManagerDashboard = () => {
               />
               <Button
                 size="sm"
+                className="h-11 px-6"
                 disabled={!selectedProductId || !newPrice}
                 onClick={handleUpdatePrice}
               >
                 Update
               </Button>
             </div>
-            <p className="text-[10px] text-slate-500">
-              Managers can adjust per-kg prices. All changes are logged in the audit
-              trail for the admin.
+            <p className="text-[11px] text-gray-400 p-2 bg-gray-50 rounded-lg">
+              Authorized managers can adjust per-kg prices. All changes are logged in the audit trail.
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent transactions</CardTitle>
+            <CardTitle className="text-brand-charcoal">Real-time Transactions</CardTitle>
           </CardHeader>
-          <CardContent className="h-52 overflow-y-auto text-xs">
+          <CardContent className="h-60 overflow-y-auto text-xs pr-2">
             {transactions.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-[11px] text-slate-500">
+              <div className="flex h-full items-center justify-center text-[11px] text-gray-400">
                 No transactions yet. Cashiers&apos; sales will show up in real time.
               </div>
             ) : (
@@ -168,17 +190,17 @@ export const ManagerDashboard = () => {
                     return (
                       <div
                         key={tx.id}
-                        className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2"
+                        className="rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-all"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-semibold text-slate-50">
+                          <span className="text-[12px] font-bold text-brand-charcoal">
                             {formatCurrency(tx.total, settings)}
                           </span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-gray-400 font-medium">
                             {formatDateTime(tx.createdAt)}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex items-center justify-between text-[10px] text-slate-400">
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-gray-500">
                           <span>
                             {cashier?.name ?? "Unknown"} • {tx.items.length} items •{" "}
                             {tx.paymentMethod.toUpperCase()}
