@@ -1,7 +1,9 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -12,15 +14,82 @@ app.use(express.json());
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || "https://glskbegsmdrylrhczpyy.supabase.co";
 const supabaseKey = process.env.SUPABASE_KEY || "sb_publishable_waCCK6KyQPWQlCQHpzVucQ_5ytpKQcQ";
+const JWT_SECRET = process.env.JWT_SECRET || "eden-top-secret-key-2026";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Middleware to authenticate JWT
+const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: "Access denied. No token provided." });
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.status(403).json({ error: "Invalid or expired token." });
+    (req as any).user = user;
+    next();
+  });
+};
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "eden-top-backend", database: "supabase" });
 });
 
+// Auth Login endpoint
+app.post("/api/auth/login", async (req, res) => {
+  const { userId, password } = req.body;
+
+  if (!userId || !password) {
+    return res.status(400).json({ error: "User ID and password are required." });
+  }
+
+  try {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: "User not found." });
+    }
+
+    // Check password
+    // If password_hash is null, we might want to handle it (e.g., initial setup)
+    if (!user.password_hash) {
+      // For development/initial setup if no hash exists, we might allow a default or prompt setup
+      // But for production level, we should expect a hash.
+      return res.status(401).json({ error: "Account not configured with a password. Please contact admin." });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid password." });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, name: user.name, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Products endpoints
-app.get("/products", async (_req, res) => {
+app.get("/products", authenticateToken, async (_req, res) => {
   try {
     const { data, error } = await supabase
       .from("products")
@@ -33,7 +102,7 @@ app.get("/products", async (_req, res) => {
   }
 });
 
-app.post("/products", async (req, res) => {
+app.post("/products", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("products")
@@ -50,9 +119,10 @@ app.post("/products", async (req, res) => {
 // Users endpoints
 app.get("/users", async (_req, res) => {
   try {
+    // Public endpoint for profile selector on login page
     const { data, error } = await supabase
       .from("users")
-      .select("*");
+      .select("id, name, role");
 
     if (error) throw error;
     res.json(data || []);
@@ -61,7 +131,7 @@ app.get("/users", async (_req, res) => {
   }
 });
 
-app.post("/users", async (req, res) => {
+app.post("/users", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("users")
@@ -76,7 +146,7 @@ app.post("/users", async (req, res) => {
 });
 
 // Transactions endpoints
-app.get("/transactions", async (_req, res) => {
+app.get("/transactions", authenticateToken, async (_req, res) => {
   try {
     const { data, error } = await supabase
       .from("transactions")
@@ -90,7 +160,7 @@ app.get("/transactions", async (_req, res) => {
   }
 });
 
-app.post("/transactions", async (req, res) => {
+app.post("/transactions", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("transactions")
@@ -105,7 +175,7 @@ app.post("/transactions", async (req, res) => {
 });
 
 // Wholesale Summaries endpoints
-app.get("/wholesale-summaries", async (req, res) => {
+app.get("/wholesale-summaries", authenticateToken, async (req, res) => {
   try {
     let query = supabase.from("wholesale_summaries").select("*");
 
@@ -126,7 +196,7 @@ app.get("/wholesale-summaries", async (req, res) => {
   }
 });
 
-app.post("/wholesale-summaries", async (req, res) => {
+app.post("/wholesale-summaries", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
@@ -140,7 +210,7 @@ app.post("/wholesale-summaries", async (req, res) => {
   }
 });
 
-app.get("/wholesale-summaries/:id", async (req, res) => {
+app.get("/wholesale-summaries/:id", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
@@ -159,7 +229,7 @@ app.get("/wholesale-summaries/:id", async (req, res) => {
   }
 });
 
-app.delete("/wholesale-summaries/:id", async (req, res) => {
+app.delete("/wholesale-summaries/:id", authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
