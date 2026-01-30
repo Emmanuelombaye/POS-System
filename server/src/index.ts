@@ -179,20 +179,25 @@ app.delete("/wholesale-summaries/:id", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, async () => {
-  // eslint-disable-next-line no-console
-  console.log(`Eden Top backend listening on port ${PORT}`);
 
-  // Verify Supabase connection
-  try {
-    const { data, error } = await supabase.from("products").select("id").limit(1);
-    if (error) {
-      console.error("Supabase connection error:", error.message);
-    } else {
-      console.log("Successfully connected to Supabase database.");
+// Vercel handles the listening, but Render (and local) needs it.
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    // eslint-disable-next-line no-console
+    console.log(`Eden Top backend listening on port ${PORT}`);
+
+    // Verify Supabase connection
+    try {
+      const { data, error } = await supabase.from("products").select("id").limit(1);
+      if (error) {
+        console.error("Supabase connection error:", error.message);
+      } else {
+        console.log("Successfully connected to Supabase database.");
+      }
+    } catch (err) {
+      console.error("Failed to reach Supabase:", (err as Error).message);
     }
-  } catch (err) {
-    console.error("Failed to reach Supabase:", (err as Error).message);
-  }
-});
+  });
+}
 
+export default app;

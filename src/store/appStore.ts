@@ -162,11 +162,11 @@ const initialProducts: Product[] = [
 ];
 
 const initialUsers: User[] = [
+  { id: "a1", name: "Owner (Admin)", role: "admin" },
+  { id: "m1", name: "James (Manager)", role: "manager" },
   { id: "c1", name: "Amina (Cashier 1)", role: "cashier" },
   { id: "c2", name: "Peter (Cashier 2)", role: "cashier" },
   { id: "c3", name: "Grace (Cashier 3)", role: "cashier" },
-  { id: "m1", name: "James (Manager)", role: "manager" },
-  { id: "a1", name: "Owner (Admin)", role: "admin" },
 ];
 
 const initialSettings: BusinessSettings = {
