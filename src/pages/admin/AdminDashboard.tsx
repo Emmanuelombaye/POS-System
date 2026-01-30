@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAppStore, Role, User, Transaction, AuditLogEntry } from "@/store/appStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +49,7 @@ interface DashboardStat {
   value: string | number;
   subtext?: string;
   icon: React.ReactNode;
-  colorClass: string;
+  colorClass?: string;
 }
 
 // --- Components ---
@@ -227,68 +228,71 @@ export const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-10 px-6 py-10 max-w-[1920px] mx-auto bg-brand-offwhite">
-
-      {/* 1. Header & Navigation */}
+    <div className="space-y-8 px-4 lg:px-8 py-6 lg:py-8 max-w-[1920px] mx-auto bg-brand-offwhite min-h-screen slide-up">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold text-brand-burgundy tracking-tight">Butchery POS</h1>
-          <p className="text-base text-gray-500 mt-2 font-medium">
-            Reports & Analytics
+          <h1 className="text-3xl lg:text-4xl font-black text-brand-charcoal tracking-tighter">
+            Business Overview
+          </h1>
+          <p className="mt-1 text-sm lg:text-base text-gray-500 font-medium">
+            Real-time performance & administration
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl shadow-premium border border-gray-100">
           <Link to="/admin/wholesale">
-            <Button variant="outline" className="h-12 px-6 rounded-xl border-gray-200 text-brand-charcoal hover:border-brand-burgundy/20 gap-2">
-              <Package className="h-4 w-4" />
+            <Button variant="outline" className="rounded-xl border-none shadow-none hover:bg-gray-50 font-black text-[10px] uppercase tracking-widest px-4">
               Wholesale Desk
             </Button>
           </Link>
-          <Button variant="default" className="h-12 px-6 rounded-xl bg-brand-burgundy hover:bg-red-900 text-white shadow-lg shadow-red-900/20 gap-2">
-            <PlusCircle className="h-4 w-4" />
-            New Sale
+          <div className="h-4 w-[1px] bg-gray-200" />
+          <Button variant="ghost" className="rounded-xl text-brand-burgundy font-black text-[10px] uppercase tracking-widest px-4">
+            Custom Report
           </Button>
         </div>
       </div>
 
       {/* 2. Top Summary Cards (Responsive Grid) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <SummaryCard
-          variant="mint"
-          stat={{
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        {[
+          {
             label: "Today's Sales",
             value: formatCurrency(dashboardData.todaySales, settings),
-            subtext: "+12.4% vs yesterday", // Static for UI demo per safe prompt
-            colorClass: "", // unused in new design
-            icon: <TrendingUp className="h-6 w-6" />
-          }} />
-        <SummaryCard
-          variant="blue"
-          stat={{
+            subtext: "+12.4% vs yesterday",
+            icon: <TrendingUp className="h-6 w-6" />,
+            variant: "mint" as const
+          },
+          {
             label: "Weight Sold",
             value: `${dashboardData.todayWeight.toFixed(1)} kg`,
             subtext: "Last 7 days volume",
-            colorClass: "",
-            icon: <Scale className="h-6 w-6" />
-          }} />
-        <SummaryCard
-          variant="lavender"
-          stat={{
+            icon: <Scale className="h-6 w-6" />,
+            variant: "blue" as const
+          },
+          {
             label: "Avg Transaction",
             value: formatCurrency(dashboardData.txCount > 0 ? dashboardData.todaySales / dashboardData.txCount : 0, settings),
             subtext: `${dashboardData.txCount} transactions`,
-            colorClass: "",
-            icon: <CreditCard className="h-6 w-6" />
-          }} />
-        <SummaryCard
-          variant="peach"
-          stat={{
+            icon: <CreditCard className="h-6 w-6" />,
+            variant: "lavender" as const
+          },
+          {
             label: "Best Branch",
-            value: "Shop 3", // Placeholder per Figma image for visual match
+            value: "Shop 3",
             subtext: "Top performer",
-            colorClass: "",
-            icon: <Award className="h-6 w-6" />
-          }} />
+            icon: <Award className="h-6 w-6" />,
+            variant: "peach" as const
+          }
+        ].map((stat, idx) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1, duration: 0.4 }}
+          >
+            <SummaryCard stat={stat} variant={stat.variant} />
+          </motion.div>
+        ))}
       </div>
 
       {/* 3. Charts Section */}
@@ -477,7 +481,7 @@ export const AdminDashboard = () => {
           <ProductManager />
         </div>
 
-        <div className="grid gap-8 md:grid-cols-[1.2fr,1.8fr]">
+        <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
           {/* User Management */}
           <Card className="border-none shadow-sm rounded-[20px]">
             <CardHeader className="pt-8 px-8">
@@ -486,64 +490,80 @@ export const AdminDashboard = () => {
                 User Access Control
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-8 pb-8 space-y-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  placeholder="New user name"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="h-12 text-sm flex-1 bg-gray-50 border-transparent focus:bg-white focus:border-brand-burgundy rounded-xl"
-                />
-                <select
-                  className="h-12 w-full sm:w-36 rounded-xl border border-transparent bg-gray-50 px-4 text-sm font-medium text-brand-charcoal focus:bg-white focus:border-brand-burgundy outline-none cursor-pointer"
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value as Role)}
-                >
-                  <option value="cashier">Cashier</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <Button onClick={handleCreateUser} className="w-full sm:w-auto h-12 rounded-xl bg-brand-charcoal hover:bg-black text-white px-6">
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add
-                </Button>
-              </div>
-              <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/30">
-                {users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center justify-between border-b border-gray-100 px-5 py-4 last:border-b-0 hover:bg-white transition-colors"
-                  >
-                    <div>
-                      <div className="text-sm font-bold text-brand-charcoal">{u.name}</div>
-                      <div className="text-[10px] text-gray-400 font-mono tracking-wide">ID: {u.id.substring(0, 6)}...</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 focus:text-brand-charcoal focus:border-brand-burgundy outline-none cursor-pointer hover:border-gray-300"
-                        value={u.role}
-                        onChange={(e) => updateUserRole(u.id, e.target.value as Role, "a1")}
-                        disabled={u.id === users.find(cu => cu.id === "a1")?.id /* In real app, check against auth context */}
-                      >
-                        <option value="cashier">Cashier</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                      </select>
-
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Are you sure you want to delete user "${u.name}"? This action cannot be undone.`)) {
-                            deleteUser(u.id, "a1");
-                          }
-                        }}
-                        disabled={u.role === "admin" || u.id === "a1"} // Prevent deleting admins or self (hardcoded "a1" for demo context, ideally currentUser.id)
-                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                        title={u.role === "admin" ? "Cannot delete admins" : "Delete user"}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+            <CardContent className="px-8 pb-8 space-y-8">
+              {/* Add User Form - Improved Space & Responsiveness */}
+              <div className="bg-gray-50/50 p-6 rounded-[24px] border border-gray-100 space-y-4">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Add New Staff Member</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                  <div className="sm:col-span-2 lg:col-span-6">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Full Name</label>
+                    <Input
+                      placeholder="e.g. John Doe"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      className="h-12 text-sm bg-white border-gray-200 focus:border-brand-burgundy rounded-xl font-bold"
+                    />
                   </div>
-                ))}
+                  <div className="col-span-1 lg:col-span-3">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Role</label>
+                    <select
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-brand-charcoal focus:border-brand-burgundy outline-none cursor-pointer"
+                      value={newUserRole}
+                      onChange={(e) => setNewUserRole(e.target.value as Role)}
+                    >
+                      <option value="cashier">Cashier</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1 lg:col-span-3 flex items-end">
+                    <Button onClick={handleCreateUser} className="h-12 w-full rounded-xl bg-brand-burgundy hover:bg-red-900 text-white font-bold shadow-lg shadow-brand-burgundy/20">
+                      <PlusCircle className="h-4 w-4 mr-2" /> Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Active Staff Accounts</h3>
+                <div className="max-h-[400px] overflow-y-auto rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+                  {users.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between border-b border-gray-100 px-5 py-4 last:border-b-0 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-brand-charcoal">{u.name}</div>
+                        <div className="text-[10px] text-gray-400 font-mono tracking-wide">ID: {u.id.substring(0, 6)}...</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 focus:text-brand-charcoal focus:border-brand-burgundy outline-none cursor-pointer hover:border-gray-300"
+                          value={u.role}
+                          onChange={(e) => updateUserRole(u.id, e.target.value as Role, "a1")}
+                          disabled={u.id === users.find(cu => cu.id === "a1")?.id /* In real app, check against auth context */}
+                        >
+                          <option value="cashier">Cashier</option>
+                          <option value="manager">Manager</option>
+                          <option value="admin">Admin</option>
+                        </select>
+
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete user "${u.name}"? This action cannot be undone.`)) {
+                              deleteUser(u.id, "a1");
+                            }
+                          }}
+                          disabled={u.role === "admin" || u.id === "a1"} // Prevent deleting admins or self (hardcoded "a1" for demo context, ideally currentUser.id)
+                          className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          title={u.role === "admin" ? "Cannot delete admins" : "Delete user"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -629,7 +649,7 @@ export const AdminDashboard = () => {
           </Card>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

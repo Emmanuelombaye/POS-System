@@ -1,13 +1,15 @@
 import type { BusinessSettings, Transaction } from "@/store/appStore";
 
-export const formatCurrency = (value: number, settings: BusinessSettings) => {
-  return `${settings.currency} ${value.toLocaleString(undefined, {
+export const formatCurrency = (value: number | undefined | null, settings: BusinessSettings) => {
+  const amount = value ?? 0;
+  return `${settings.currency} ${amount.toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })}`;
 };
 
-export const formatDateTime = (iso: string) => {
+export const formatDateTime = (iso: string | undefined | null) => {
+  if (!iso) return "N/A";
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
     day: "2-digit",

@@ -132,8 +132,8 @@ export const ProductManager = () => {
                                         {formatCurrency(p.pricePerKg, settings)}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <span className={`font-bold ${p.stockKg <= p.lowStockThresholdKg ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                            {p.stockKg.toFixed(1)} kg
+                                        <span className={`font-bold ${(p.stockKg || 0) <= (p.lowStockThresholdKg || 0) ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                            {(p.stockKg || 0).toFixed(1)} kg
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
