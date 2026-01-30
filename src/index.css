@@ -149,6 +149,8 @@
   body {
     @apply bg-brand-offwhite text-foreground antialiased selection:bg-brand-gold/30 selection:text-brand-charcoal;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
   }
 }
 
@@ -171,4 +173,65 @@
 /* Smooth Transitions Global */
 * {
   @apply transition-colors duration-200 ease-in-out;
+}
+
+/* Premium Animations */
+.fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Premium Shadows */
+.shadow-premium {
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-premium-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+/* Skeleton Shimmer */
+.skeleton-shimmer {
+  @apply bg-gray-100 animate-pulse rounded-2xl;
+  background: linear-gradient(90deg,
+      rgba(243, 244, 246, 1) 25%,
+      rgba(229, 231, 235, 1) 50%,
+      rgba(243, 244, 246, 1) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }

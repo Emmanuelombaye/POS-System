@@ -25,7 +25,7 @@ app.get("/products", async (_req, res) => {
     const { data, error } = await supabase
       .from("products")
       .select("*");
-    
+
     if (error) throw error;
     res.json(data || []);
   } catch (error) {
@@ -39,7 +39,7 @@ app.post("/products", async (req, res) => {
       .from("products")
       .insert([req.body])
       .select();
-    
+
     if (error) throw error;
     res.status(201).json(data?.[0]);
   } catch (error) {
@@ -53,7 +53,7 @@ app.get("/users", async (_req, res) => {
     const { data, error } = await supabase
       .from("users")
       .select("*");
-    
+
     if (error) throw error;
     res.json(data || []);
   } catch (error) {
@@ -67,7 +67,7 @@ app.post("/users", async (req, res) => {
       .from("users")
       .insert([req.body])
       .select();
-    
+
     if (error) throw error;
     res.status(201).json(data?.[0]);
   } catch (error) {
@@ -82,7 +82,7 @@ app.get("/transactions", async (_req, res) => {
       .from("transactions")
       .select("*")
       .order("created_at", { ascending: false });
-    
+
     if (error) throw error;
     res.json(data || []);
   } catch (error) {
@@ -96,7 +96,7 @@ app.post("/transactions", async (req, res) => {
       .from("transactions")
       .insert([req.body])
       .select();
-    
+
     if (error) throw error;
     res.status(201).json(data?.[0]);
   } catch (error) {
@@ -108,7 +108,7 @@ app.post("/transactions", async (req, res) => {
 app.get("/wholesale-summaries", async (req, res) => {
   try {
     let query = supabase.from("wholesale_summaries").select("*");
-    
+
     // Optional filters
     if (req.query.branch) {
       query = query.eq("branch", req.query.branch);
@@ -116,9 +116,9 @@ app.get("/wholesale-summaries", async (req, res) => {
     if (req.query.date) {
       query = query.eq("date", req.query.date);
     }
-    
+
     const { data, error } = await query.order("date", { ascending: false });
-    
+
     if (error) throw error;
     res.json(data || []);
   } catch (error) {
@@ -132,7 +132,7 @@ app.post("/wholesale-summaries", async (req, res) => {
       .from("wholesale_summaries")
       .insert([req.body])
       .select();
-    
+
     if (error) throw error;
     res.status(201).json(data?.[0]);
   } catch (error) {
@@ -147,7 +147,7 @@ app.get("/wholesale-summaries/:id", async (req, res) => {
       .select("*")
       .eq("id", req.params.id)
       .single();
-    
+
     if (error) throw error;
     if (!data) {
       res.status(404).json({ error: "Summary not found" });
@@ -166,7 +166,7 @@ app.delete("/wholesale-summaries/:id", async (req, res) => {
       .delete()
       .eq("id", req.params.id)
       .select();
-    
+
     if (error) throw error;
     if (!data || data.length === 0) {
       res.status(404).json({ error: "Summary not found" });
@@ -179,8 +179,20 @@ app.delete("/wholesale-summaries/:id", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   // eslint-disable-next-line no-console
   console.log(`Eden Top backend listening on port ${PORT}`);
+
+  // Verify Supabase connection
+  try {
+    const { data, error } = await supabase.from("products").select("id").limit(1);
+    if (error) {
+      console.error("Supabase connection error:", error.message);
+    } else {
+      console.log("Successfully connected to Supabase database.");
+    }
+  } catch (err) {
+    console.error("Failed to reach Supabase:", (err as Error).message);
+  }
 });
 

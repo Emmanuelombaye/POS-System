@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate, useLocation, Link } from "react-router-dom";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
 import { Moon, SunMedium, LogOut } from "lucide-react";
@@ -35,6 +35,32 @@ export const RootLayout = () => {
             </div>
           </div>
         </div>
+
+        {/* Dynamic Navigation for Admins */}
+        {user?.role === "admin" && (
+          <nav className="hidden md:flex items-center gap-6 ml-12">
+            <Link
+              to="/admin"
+              className={`text-sm font-bold tracking-wide transition-colors ${location.pathname === "/admin"
+                  ? "text-brand-gold"
+                  : "text-gray-400 hover:text-white"
+                }`}
+            >
+              DASHBOARD
+            </Link>
+            <Link
+              to="/admin/wholesale"
+              className={`text-sm font-bold tracking-wide transition-colors ${location.pathname === "/admin/wholesale"
+                  ? "text-brand-gold"
+                  : "text-gray-400 hover:text-white"
+                }`}
+            >
+              WHOLESALE
+            </Link>
+          </nav>
+        )}
+
+        <div className="flex-1"></div>
 
         <div className="flex items-center gap-4">
           {/* User Profile Capsule */}

@@ -1,0 +1,5 @@
+id,name,code,category,price_per_kg,stock_kg,low_stock_threshold_kg,is_active,created_at,updated_at
+beef-regular,Beef - Prime Cuts,BF-PRIME,beef,780,85,15,true,2026-01-30 00:00:00,2026-01-30 00:00:00
+goat-regular,Goat - Mixed,GT-MIX,goat,720,60,10,true,2026-01-30 00:00:00,2026-01-30 00:00:00
+liver-beef,Beef Liver,BF-LIVER,offal,550,25,5,true,2026-01-30 00:00:00,2026-01-30 00:00:00
+minced-beef,Minced Beef,BF-MINCED,processed,800,35,7,true,2026-01-30 00:00:00,2026-01-30 00:00:00
