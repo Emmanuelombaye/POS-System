@@ -11,6 +11,13 @@ import { Check, ShieldCheck, Zap } from "lucide-react";
 export const LoginPage = () => {
   const users = useAppStore((s) => s.users);
   const login = useAppStore((s) => s.login);
+
+  // Sort users: Admin > Manager > Cashier
+  const sortedUsers = [...users].sort((a, b) => {
+    const priority: Record<string, number> = { admin: 1, manager: 2, cashier: 3 };
+    return (priority[a.role] || 4) - (priority[b.role] || 4);
+  });
+
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [pin, setPin] = useState("");
   const navigate = useNavigate();
@@ -92,14 +99,14 @@ export const LoginPage = () => {
           <Card className="border-none shadow-xl bg-white p-2">
             <CardContent className="p-6">
               <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2 mb-6">
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <button
                     key={user.id}
                     type="button"
                     onClick={() => setSelectedUserId(user.id)}
                     className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${selectedUserId === user.id
-                        ? "border-brand-burgundy bg-brand-burgundy/5 ring-1 ring-brand-burgundy"
-                        : "border-gray-100 hover:border-brand-burgundy/30 hover:bg-gray-50"
+                      ? "border-brand-burgundy bg-brand-burgundy/5 ring-1 ring-brand-burgundy"
+                      : "border-gray-100 hover:border-brand-burgundy/30 hover:bg-gray-50"
                       }`}
                   >
                     <div className="flex items-center gap-3">
