@@ -32,12 +32,12 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   });
 };
 
-app.get("/health", (_req, res) => {
+app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "eden-top-backend", database: "supabase" });
 });
 
 // Auth Login endpoint
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", async (req: Request, res: Response) => {
   const { userId, password } = req.body;
 
   if (!userId || !password) {
@@ -56,10 +56,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Check password
-    // If password_hash is null, we might want to handle it (e.g., initial setup)
     if (!user.password_hash) {
-      // For development/initial setup if no hash exists, we might allow a default or prompt setup
-      // But for production level, we should expect a hash.
       return res.status(401).json({ error: "Account not configured with a password. Please contact admin." });
     }
 
@@ -89,7 +86,7 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // Products endpoints
-app.get("/products", authenticateToken, async (_req, res) => {
+app.get("/products", authenticateToken, async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("products")
@@ -102,7 +99,7 @@ app.get("/products", authenticateToken, async (_req, res) => {
   }
 });
 
-app.post("/products", authenticateToken, async (req, res) => {
+app.post("/products", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("products")
@@ -117,7 +114,7 @@ app.post("/products", authenticateToken, async (req, res) => {
 });
 
 // Users endpoints
-app.get("/users", async (_req, res) => {
+app.get("/users", async (_req: Request, res: Response) => {
   try {
     // Public endpoint for profile selector on login page
     const { data, error } = await supabase
@@ -131,7 +128,7 @@ app.get("/users", async (_req, res) => {
   }
 });
 
-app.post("/users", authenticateToken, async (req, res) => {
+app.post("/users", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("users")
@@ -146,7 +143,7 @@ app.post("/users", authenticateToken, async (req, res) => {
 });
 
 // Transactions endpoints
-app.get("/transactions", authenticateToken, async (_req, res) => {
+app.get("/transactions", authenticateToken, async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("transactions")
@@ -160,7 +157,7 @@ app.get("/transactions", authenticateToken, async (_req, res) => {
   }
 });
 
-app.post("/transactions", authenticateToken, async (req, res) => {
+app.post("/transactions", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("transactions")
@@ -175,7 +172,7 @@ app.post("/transactions", authenticateToken, async (req, res) => {
 });
 
 // Wholesale Summaries endpoints
-app.get("/wholesale-summaries", authenticateToken, async (req, res) => {
+app.get("/wholesale-summaries", authenticateToken, async (req: Request, res: Response) => {
   try {
     let query = supabase.from("wholesale_summaries").select("*");
 
@@ -184,7 +181,7 @@ app.get("/wholesale-summaries", authenticateToken, async (req, res) => {
       query = query.eq("branch", req.query.branch);
     }
     if (req.query.date) {
-      query = query.eq("date", req.query.date);
+      query = query.eq("date", req.query.date as string);
     }
 
     const { data, error } = await query.order("date", { ascending: false });
@@ -196,7 +193,7 @@ app.get("/wholesale-summaries", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/wholesale-summaries", authenticateToken, async (req, res) => {
+app.post("/wholesale-summaries", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
@@ -210,7 +207,7 @@ app.post("/wholesale-summaries", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/wholesale-summaries/:id", authenticateToken, async (req, res) => {
+app.get("/wholesale-summaries/:id", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
@@ -229,7 +226,7 @@ app.get("/wholesale-summaries/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.delete("/wholesale-summaries/:id", authenticateToken, async (req, res) => {
+app.delete("/wholesale-summaries/:id", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
