@@ -9,6 +9,7 @@ import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { WholesaleDesk } from "@/components/wholesale/WholesaleDesk";
 import { useAppStore } from "@/store/appStore";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const RequireRole = ({
   role,
@@ -110,6 +111,7 @@ export const App = () => {
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        <SpeedInsights />
       </div>
     </ThemeProvider>
   );
