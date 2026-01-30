@@ -71,6 +71,7 @@ export interface AuditLogEntry {
 
 export interface AppState {
   currentUser?: User;
+  token?: string;
   products: Product[];
   users: User[];
   transactions: Transaction[];
@@ -83,7 +84,7 @@ export interface AppState {
   cashierPaymentMethod: PaymentMethod;
 
   // actions
-  login: (userId: string) => void;
+  login: (userId: string, password: string) => Promise<void>;
   logout: () => void;
 
   addProductToCart: (product: Product, weightKg: number) => void;
@@ -188,6 +189,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: undefined,
+      token: undefined,
       products: initialProducts,
       users: initialUsers,
       transactions: [],
@@ -197,14 +199,26 @@ export const useAppStore = create<AppState>()(
       cashierDiscount: undefined,
       cashierPaymentMethod: "cash",
 
-      login: (userId) => {
-        const user = get().users.find((u) => u.id === userId);
-        if (!user) return;
-        set({ currentUser: user });
+      login: async (userId, password) => {
+        try {
+          const res = await api.post("/api/auth/login", { userId, password });
+          if (res.token && res.user) {
+            set({
+              currentUser: res.user,
+              token: res.token
+            });
+            // Re-initialize data since we now have a token
+            const { initialize } = get();
+            await initialize();
+          }
+        } catch (error) {
+          console.error("Login failed:", error);
+          throw error;
+        }
       },
 
       logout: () => {
-        set({ currentUser: undefined, cashierCart: [], cashierDiscount: undefined });
+        set({ currentUser: undefined, token: undefined, cashierCart: [], cashierDiscount: undefined });
       },
 
       addProductToCart: (product, weightKg) => {
@@ -616,6 +630,7 @@ export const useAppStore = create<AppState>()(
       name: "eden-top-state",
       partialize: (state) => ({
         currentUser: state.currentUser,
+        token: state.token,
         products: state.products,
         users: state.users,
         transactions: state.transactions,

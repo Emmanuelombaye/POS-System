@@ -19,18 +19,28 @@ export const LoginPage = () => {
   });
 
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [pin, setPin] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (!selectedUserId) return;
-    // In a real backend this would validate PIN; here it's just a UI placeholder
-    login(selectedUserId);
-    const user = users.find((u) => u.id === selectedUserId);
-    if (!user) return;
-    if (user.role === "cashier") navigate("/cashier");
-    if (user.role === "manager") navigate("/manager");
-    if (user.role === "admin") navigate("/admin");
+  const handleLogin = async () => {
+    if (!selectedUserId || !password) return;
+
+    setIsLoading(true);
+    try {
+      await login(selectedUserId, password);
+      const user = users.find((u) => u.id === selectedUserId);
+      if (!user) return;
+
+      if (user.role === "cashier") navigate("/cashier");
+      else if (user.role === "manager") navigate("/manager");
+      else if (user.role === "admin") navigate("/admin");
+    } catch (error) {
+      alert("Invalid password or user configuration. Please check your credentials.");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -129,24 +139,24 @@ export const LoginPage = () => {
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5 block">
-                    Security PIN
+                    Security Password
                   </label>
                   <Input
                     type="password"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="text-center text-2xl tracking-[0.5em] h-14 font-mono text-brand-charcoal placeholder:text-gray-200 bg-gray-50 focus:bg-white"
-                    placeholder="••••"
-                    maxLength={4}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-14 text-brand-charcoal bg-gray-50 focus:bg-white"
+                    placeholder="Enter your password"
+                    disabled={isLoading}
                   />
                 </div>
 
                 <Button
                   className="w-full h-12 text-base shadow-lg shadow-brand-burgundy/20"
-                  disabled={!selectedUserId}
+                  disabled={!selectedUserId || !password || isLoading}
                   onClick={handleLogin}
                 >
-                  Enter POS Terminal
+                  {isLoading ? "Authenticating..." : "Enter POS Terminal"}
                 </Button>
               </div>
             </CardContent>
