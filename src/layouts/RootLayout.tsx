@@ -1,7 +1,7 @@
 import { Outlet, Navigate, useLocation, Link } from "react-router-dom";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
-import { Moon, SunMedium, LogOut } from "lucide-react";
+import { Moon, SunMedium, LogOut, Store, Package, ClipboardList } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export const RootLayout = () => {
@@ -41,21 +41,59 @@ export const RootLayout = () => {
           <nav className="hidden md:flex items-center gap-6 ml-12">
             <Link
               to="/admin"
-              className={`text-sm font-bold tracking-wide transition-colors ${location.pathname === "/admin"
-                  ? "text-brand-gold"
-                  : "text-gray-400 hover:text-white"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin"
+                ? "text-brand-gold"
+                : "text-gray-400 hover:text-white"
                 }`}
             >
+              <Store className="h-4 w-4" />
               DASHBOARD
             </Link>
             <Link
               to="/admin/wholesale"
-              className={`text-sm font-bold tracking-wide transition-colors ${location.pathname === "/admin/wholesale"
-                  ? "text-brand-gold"
-                  : "text-gray-400 hover:text-white"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/wholesale"
+                ? "text-brand-gold"
+                : "text-gray-400 hover:text-white"
                 }`}
             >
+              <Package className="h-4 w-4" />
               WHOLESALE
+            </Link>
+            <Link
+              to="/admin/reconciliation"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/reconciliation"
+                ? "text-brand-gold"
+                : "text-gray-400 hover:text-white"
+                }`}
+            >
+              <ClipboardList className="h-4 w-4" />
+              RECONCILIATION
+            </Link>
+          </nav>
+        )}
+
+        {/* Dynamic Navigation for Cashiers */}
+        {user?.role === "cashier" && (
+          <nav className="hidden md:flex items-center gap-6 ml-12">
+            <Link
+              to="/cashier"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/cashier"
+                ? "text-brand-gold"
+                : "text-gray-400 hover:text-white"
+                }`}
+            >
+              <Store className="h-4 w-4" />
+              SALES
+            </Link>
+            <Link
+              to="/cashier/shift"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/cashier/shift"
+                ? "text-brand-gold"
+                : "text-gray-400 hover:text-white"
+                }`}
+            >
+              <Package className="h-4 w-4" />
+              SHIFT STOCK
             </Link>
           </nav>
         )}

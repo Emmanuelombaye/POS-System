@@ -34,21 +34,31 @@ export const api = {
     },
 
     async post(endpoint: string, data: any) {
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
-        return res.json();
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        return response.json();
+    },
+
+    async patch(endpoint: string, data: any) {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        return response.json();
     },
 
     async delete(endpoint: string) {
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'DELETE',
             headers: getHeaders(),
         });
-        if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
-        return res.json();
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        return response.json();
     }
 };

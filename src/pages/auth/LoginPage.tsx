@@ -11,6 +11,7 @@ import { Check, ShieldCheck, Zap } from "lucide-react";
 export const LoginPage = () => {
   const users = useAppStore((s) => s.users);
   const login = useAppStore((s) => s.login);
+  const currentUser = useAppStore((s) => s.currentUser);
 
   // Sort users: Admin > Manager > Cashier
   const sortedUsers = [...users].sort((a, b) => {
@@ -29,12 +30,10 @@ export const LoginPage = () => {
     setIsLoading(true);
     try {
       await login(selectedUserId, password);
-      const user = users.find((u) => u.id === selectedUserId);
-      if (!user) return;
-
-      if (user.role === "cashier") navigate("/cashier");
-      else if (user.role === "manager") navigate("/manager");
-      else if (user.role === "admin") navigate("/admin");
+      // Navigation is handled by the store re-initialization ensuring state is valid
+      if (currentUser?.role === "admin") navigate("/admin");
+      else if (currentUser?.role === "manager") navigate("/manager");
+      else navigate("/cashier");
     } catch (error) {
       alert("Invalid password or user configuration. Please check your credentials.");
       console.error(error);
