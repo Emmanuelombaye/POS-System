@@ -69,6 +69,37 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export interface Shift {
+  id: string;
+  cashierId: UserId;
+  openedAt: string;
+  closedAt?: string;
+  status: "OPEN" | "PENDING_REVIEW" | "APPROVED";
+  cashierName?: string;
+}
+
+export interface StockAddition {
+  id: string;
+  shiftId: string;
+  itemId: ProductId;
+  productName?: string;
+  quantityKg: number;
+  supplier?: string;
+  notes?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdBy: UserId;
+  createdAt: string;
+}
+
+export interface ShiftSnapshot {
+  itemId: ProductId;
+  productName: string;
+  openingKg: number;
+  expectedClosingKg?: number;
+  actualClosingKg?: number;
+  varianceKg?: number;
+}
+
 export interface AppState {
   currentUser?: User;
   token?: string;
@@ -82,6 +113,11 @@ export interface AppState {
   cashierCart: CartItem[];
   cashierDiscount?: Discount;
   cashierPaymentMethod: PaymentMethod;
+
+  // SSR state
+  activeShift?: Shift;
+  recentShifts: Shift[];
+  pendingAdditions: StockAddition[];
 
   // actions
   login: (userId: string, password: string) => Promise<void>;
@@ -101,14 +137,20 @@ export interface AppState {
 
   updateProductPrice: (productId: string, pricePerKg: number, managerId: UserId) => void;
   updateProductStock: (productId: string, stockKg: number, actorId: UserId) => void;
-  upsertProduct: (product: Product, actorId: UserId) => void;
-  removeProduct: (productId: string, actorId: UserId) => void;
 
-  addUser: (user: User, actorId: UserId) => void;
+  addUser: (user: User, actorId: UserId, password?: string) => void;
   updateUserRole: (userId: UserId, role: Role, actorId: UserId) => void;
   deleteUser: (userId: UserId, actorId: UserId) => void;
 
   updateSettings: (settings: Partial<BusinessSettings>, actorId: UserId | "system") => void;
+
+  // SSR actions
+  openShift: (cashierId: UserId) => Promise<void>;
+  closeShift: (shiftId: string, actualCounts: Record<ProductId, number>) => Promise<void>;
+  addStockAddition: (addition: Omit<StockAddition, "id" | "status" | "createdBy" | "createdAt">) => Promise<void>;
+  approveStockAddition: (additionId: string, status: "APPROVED" | "REJECTED") => Promise<void>;
+  fetchShifts: (filters?: { status?: string; cashier_id?: string }) => Promise<void>;
+  fetchPendingAdditions: () => Promise<void>;
 
   // sync actions
   initialize: () => Promise<void>;
@@ -190,14 +232,16 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: undefined,
       token: undefined,
-      products: initialProducts,
-      users: initialUsers,
+      initialUsers: initialUsers,
       transactions: [],
       auditLog: [],
       settings: initialSettings,
       cashierCart: [],
       cashierDiscount: undefined,
       cashierPaymentMethod: "cash",
+      activeShift: undefined,
+      recentShifts: [],
+      pendingAdditions: [],
 
       login: async (userId, password) => {
         try {
@@ -218,7 +262,13 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
-        set({ currentUser: undefined, token: undefined, cashierCart: [], cashierDiscount: undefined });
+        set({
+          currentUser: undefined,
+          token: undefined,
+          cashierCart: [],
+          cashierDiscount: undefined,
+          activeShift: undefined
+        });
       },
 
       addProductToCart: (product, weightKg) => {
@@ -294,6 +344,7 @@ export const useAppStore = create<AppState>()(
         api.post("/transactions", {
           id: tx.id,
           cashier_id: tx.cashierId,
+          shift_id: get().activeShift?.id, // Link to active shift if exists
           created_at: tx.createdAt,
           items: tx.items,
           discount: tx.discount,
@@ -301,7 +352,8 @@ export const useAppStore = create<AppState>()(
           total: tx.total,
           payment_method: tx.paymentMethod,
         }).then(() => {
-          // You might also want to update products stock here if the backend doesn't handle it
+          // fetchProducts to get updated stock handled by ledger
+          get().fetchProducts();
         }).catch(err => console.error("Error completing sale:", err));
 
         // update local stock and tx list for immediate feedback
@@ -347,7 +399,8 @@ export const useAppStore = create<AppState>()(
             low_stock_threshold_kg: product.lowStockThresholdKg,
             is_active: product.isActive,
           });
-          // Realtime will handle the store update
+          const { fetchProducts } = get();
+          await fetchProducts();
         } catch (error) {
           console.error("Error adding product:", error);
         }
@@ -355,199 +408,77 @@ export const useAppStore = create<AppState>()(
 
       updateProduct: async (productId, updates, actorId) => {
         try {
-          // This would ideally be a PATCH, but our simple backend uses POST /products for upsert or doesn't have a PATCH yet.
-          // Let's assume the backend needs a specific endpoint or we just send the full object.
-          // For now, I'll use the API if it's ready, or focus on what's definitely there.
-          // Looking at server/src/index.ts, we only have GET/POST.
-          // I will stick to what the backend supports.
+          // Flatten updates for API (camelCase to snake_case if necessary)
+          const apiUpdates: any = {};
+          if (updates.name !== undefined) apiUpdates.name = updates.name;
+          if (updates.code !== undefined) apiUpdates.code = updates.code;
+          if (updates.category !== undefined) apiUpdates.category = updates.category;
+          if (updates.pricePerKg !== undefined) apiUpdates.price_per_kg = updates.pricePerKg;
+          if (updates.stockKg !== undefined) apiUpdates.stock_kg = updates.stockKg;
+          if (updates.lowStockThresholdKg !== undefined) apiUpdates.low_stock_threshold_kg = updates.lowStockThresholdKg;
+          if (updates.isActive !== undefined) apiUpdates.is_active = updates.isActive;
+
+          await api.patch(`/products/${productId}`, apiUpdates);
+          const { fetchProducts } = get();
+          await fetchProducts();
         } catch (error) {
           console.error("Error updating product:", error);
         }
       },
 
-      deleteProduct: (productId, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          if (!actor || actor.role !== "admin") return state; // Only admins
-
-          const product = state.products.find((p) => p.id === productId);
-          if (!product) return state;
-
-          return {
-            products: state.products.filter((p) => p.id !== productId),
-            // Also remove from cart if present
-            cashierCart: state.cashierCart.filter((item) => item.productId !== productId),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor.name,
-                role: actor.role,
-                action: `Deleted product: ${product.name}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      },
-
-      updateProductPrice: (productId, pricePerKg, managerId) => {
-        set((state) => {
-          const manager = state.users.find((u) => u.id === managerId);
-          return {
-            products: state.products.map((p) =>
-              p.id === productId ? { ...p, pricePerKg } : p
-            ),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId: managerId,
-                actorName: manager?.name ?? "Unknown",
-                role: manager?.role ?? "manager",
-                action: `Updated price for ${productId} to ${pricePerKg}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      },
-
-      updateProductStock: (productId, stockKg, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          return {
-            products: state.products.map((p) =>
-              p.id === productId ? { ...p, stockKg } : p
-            ),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor?.name ?? "Unknown",
-                role: actor?.role ?? "manager",
-                action: `Adjusted stock for ${productId} to ${stockKg}kg`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      },
-
-      upsertProduct: (product, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          const exists = state.products.some((p) => p.id === product.id);
-          const products = exists
-            ? state.products.map((p) => (p.id === product.id ? product : p))
-            : [...state.products, product];
-          return {
-            products,
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor?.name ?? "Unknown",
-                role: actor?.role ?? "admin",
-                action: `${exists ? "Updated" : "Created"} product ${product.name}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      },
-
-      removeProduct: (productId, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          const product = state.products.find((p) => p.id === productId);
-          return {
-            products: state.products.filter((p) => p.id !== productId),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor?.name ?? "Unknown",
-                role: actor?.role ?? "admin",
-                action: `Removed product ${product?.name ?? productId}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
-      },
-
-      addUser: async (user, actorId) => {
+      deleteProduct: async (productId, actorId) => {
         try {
-          await api.post("/users", user);
-          // Realtime will handle the store update
+          await api.delete(`/products/${productId}`);
+          const { fetchProducts } = get();
+          await fetchProducts();
+        } catch (error) {
+          console.error("Error deleting product:", error);
+        }
+      },
+
+      updateProductPrice: async (productId, pricePerKg, managerId) => {
+        const { updateProduct } = get();
+        await updateProduct(productId, { pricePerKg }, managerId);
+      },
+
+      updateProductStock: async (productId, stockKg, actorId) => {
+        try {
+          await api.patch(`/products/${productId}`, { stock_kg: stockKg });
+          const { fetchProducts } = get();
+          await fetchProducts();
+        } catch (error) {
+          console.error("Error updating product stock:", error);
+        }
+      },
+
+      addUser: async (user: User, actorId: UserId, password?: string) => {
+        try {
+          await api.post("/users", { ...user, password });
+          const { fetchUsers } = get();
+          await fetchUsers();
         } catch (error) {
           console.error("Error adding user:", error);
         }
       },
 
-      updateUserRole: (userId, role, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          const user = state.users.find((u) => u.id === userId);
-          return {
-            users: state.users.map((u) => (u.id === userId ? { ...u, role } : u)),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor?.name ?? "Unknown",
-                role: actor?.role ?? "admin",
-                action: `Changed role for ${user?.name ?? userId} to ${role}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
+      updateUserRole: async (userId, role, actorId) => {
+        try {
+          await api.patch(`/users/${userId}`, { role });
+          const { fetchUsers } = get();
+          await fetchUsers();
+        } catch (error) {
+          console.error("Error updating user role:", error);
+        }
       },
 
-      deleteUser: (userId, actorId) => {
-        set((state) => {
-          const actor = state.users.find((u) => u.id === actorId);
-          const targetUser = state.users.find((u) => u.id === userId);
-
-          // Validation
-          if (!actor || actor.role !== "admin") {
-            console.warn("Permission denied: Only admins can delete users.");
-            return state;
-          }
-          if (userId === actorId) {
-            console.warn("Operation denied: Admins cannot delete themselves.");
-            return state;
-          }
-          if (targetUser?.role === "admin") {
-            console.warn("Operation denied: Admins cannot delete other admins.");
-            return state;
-          }
-          if (!targetUser) {
-            return state;
-          }
-
-          return {
-            users: state.users.filter((u) => u.id !== userId),
-            auditLog: [
-              ...state.auditLog,
-              {
-                id: generateId(),
-                actorId,
-                actorName: actor?.name ?? "Unknown",
-                role: actor.role,
-                action: `Deleted user ${targetUser.name} (${targetUser.role})`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-        });
+      deleteUser: async (userId, actorId) => {
+        try {
+          await api.delete(`/users/${userId}`);
+          const { fetchUsers } = get();
+          await fetchUsers();
+        } catch (error) {
+          console.error("Error deleting user:", error);
+        }
       },
 
       updateSettings: (settings, actorId) => {
@@ -623,6 +554,108 @@ export const useAppStore = create<AppState>()(
           set({ transactions });
         } catch (error) {
           console.error("Error fetching transactions:", error);
+        }
+      },
+
+      openShift: async (cashierId) => {
+        try {
+          const shift = await api.post("/shifts/open", { cashier_id: cashierId });
+          set({
+            activeShift: {
+              id: shift.id,
+              cashierId: shift.cashier_id,
+              openedAt: shift.opened_at,
+              status: shift.status
+            }
+          });
+          await get().fetchShifts();
+        } catch (error) {
+          console.error("Error opening shift:", error);
+          throw error;
+        }
+      },
+
+      closeShift: async (shiftId, actualCounts) => {
+        try {
+          await api.post(`/shifts/${shiftId}/close`, { actual_counts: actualCounts });
+          set({ activeShift: undefined });
+          await get().fetchShifts();
+          await get().fetchProducts();
+        } catch (error) {
+          console.error("Error closing shift:", error);
+          throw error;
+        }
+      },
+
+      addStockAddition: async (addition) => {
+        try {
+          await api.post("/stock-additions", {
+            shift_id: addition.shiftId,
+            item_id: addition.itemId,
+            quantity_kg: addition.quantityKg,
+            supplier: addition.supplier,
+            notes: addition.notes
+          });
+          await get().fetchPendingAdditions();
+        } catch (error) {
+          console.error("Error adding stock:", error);
+          throw error;
+        }
+      },
+
+      approveStockAddition: async (additionId, status) => {
+        try {
+          await api.patch(`/stock-additions/${additionId}/approve`, { status });
+          await get().fetchPendingAdditions();
+          await get().fetchProducts();
+        } catch (error) {
+          console.error("Error approving stock addition:", error);
+          throw error;
+        }
+      },
+
+      fetchShifts: async (filters) => {
+        try {
+          const data = await api.get("/shifts", filters);
+          const shifts = data.map((s: any) => ({
+            id: s.id,
+            cashierId: s.cashier_id,
+            openedAt: s.opened_at,
+            closedAt: s.closed_at,
+            status: s.status,
+            cashierName: s.users?.name
+          }));
+          set({ recentShifts: shifts });
+
+          // If we have an OPEN shift for the current user, set it as activeShift
+          const currentUser = get().currentUser;
+          if (currentUser && !get().activeShift) {
+            const openShift = shifts.find((s: any) => s.cashierId === currentUser.id && s.status === 'OPEN');
+            if (openShift) set({ activeShift: openShift });
+          }
+        } catch (error) {
+          console.error("Error fetching shifts:", error);
+        }
+      },
+
+      fetchPendingAdditions: async () => {
+        try {
+          const data = await api.get("/stock-additions", { status: 'PENDING' });
+          const additions = data.map((a: any) => ({
+            id: a.id,
+            shiftId: a.shift_id,
+            itemId: a.item_id,
+            productName: a.products?.name,
+            quantityKg: Number(a.quantity_kg),
+            supplier: a.supplier,
+            notes: a.notes,
+            status: a.status,
+            createdBy: a.created_by,
+            createdAt: a.created_at
+          }));
+          set({ pendingAdditions: additions });
+        } catch (error) {
+          console.error("Error fetching stock additions:", error);
         }
       },
     }),

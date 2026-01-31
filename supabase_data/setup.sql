@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
   cashier_id TEXT NOT NULL REFERENCES users(id),
+  shift_id UUID, -- Optional: link transaction to a shift
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   items JSONB,
   discount JSONB,
@@ -57,9 +58,60 @@ CREATE TABLE IF NOT EXISTS wholesale_summaries (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for wholesale_summaries
+-- 6. Create shifts table
+CREATE TABLE IF NOT EXISTS shifts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  cashier_id TEXT NOT NULL REFERENCES users(id),
+  opened_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  closed_at TIMESTAMP WITH TIME ZONE,
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'PENDING_REVIEW', 'APPROVED')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 7. Create stock_additions table
+CREATE TABLE IF NOT EXISTS stock_additions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  shift_id UUID REFERENCES shifts(id),
+  item_id TEXT REFERENCES products(id),
+  quantity_kg DECIMAL(10, 2) NOT NULL,
+  supplier TEXT,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  created_by TEXT REFERENCES users(id),
+  approved_by TEXT REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. Create inventory_ledger table
+CREATE TABLE IF NOT EXISTS inventory_ledger (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  item_id TEXT REFERENCES products(id),
+  event_type TEXT NOT NULL CHECK (event_type IN ('OPENING_SNAPSHOT', 'SALE', 'STOCK_ADDED', 'WASTAGE', 'SHIFT_CLOSE', 'MANUAL_ADJUST')),
+  quantity_kg DECIMAL(10, 2) NOT NULL,
+  shift_id UUID REFERENCES shifts(id),
+  user_id TEXT REFERENCES users(id),
+  reference_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 9. Create shift_stock_snapshots table
+CREATE TABLE IF NOT EXISTS shift_stock_snapshots (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  shift_id UUID REFERENCES shifts(id),
+  item_id TEXT REFERENCES products(id),
+  opening_kg DECIMAL(10, 2) NOT NULL,
+  expected_closing_kg DECIMAL(10, 2),
+  actual_closing_kg DECIMAL(10, 2),
+  variance_kg DECIMAL(10, 2),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(shift_id, item_id)
+);
+
+-- Create indexes
 CREATE INDEX IF NOT EXISTS idx_wholesale_summaries_branch ON wholesale_summaries(branch);
 CREATE INDEX IF NOT EXISTS idx_wholesale_summaries_date ON wholesale_summaries(date);
+CREATE INDEX IF NOT EXISTS idx_inventory_ledger_item ON inventory_ledger(item_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_ledger_shift ON inventory_ledger(shift_id);
 
 -- Enable Realtime for all tables
 ALTER PUBLICATION supabase_realtime ADD TABLE products;
@@ -67,3 +119,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE users;
 ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
 ALTER PUBLICATION supabase_realtime ADD TABLE audit_log;
 ALTER PUBLICATION supabase_realtime ADD TABLE wholesale_summaries;
+ALTER PUBLICATION supabase_realtime ADD TABLE shifts;
+ALTER PUBLICATION supabase_realtime ADD TABLE stock_additions;
+ALTER PUBLICATION supabase_realtime ADD TABLE inventory_ledger;
+ALTER PUBLICATION supabase_realtime ADD TABLE shift_stock_snapshots;

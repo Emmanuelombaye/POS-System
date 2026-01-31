@@ -101,11 +101,12 @@ export const AdminDashboard = () => {
     updateUserRole,
     deleteUser,
     updateSettings,
+    currentUser,
   } = useAppStore();
 
   const [newUserName, setNewUserName] = useState("");
   const [newUserRole, setNewUserRole] = useState<Role>("cashier");
-
+  const [newUserPassword, setNewUserPassword] = useState("");
   // --- Data Calculations ---
   // (Preserved existing logic)
   const today = new Date();
@@ -213,14 +214,18 @@ export const AdminDashboard = () => {
 
   // --- Handlers from Original Code ---
   const handleCreateUser = () => {
-    if (!newUserName.trim()) return;
+    if (!newUserName.trim() || !newUserPassword.trim()) {
+      alert("Name and password are required.");
+      return;
+    }
     const user: User = {
       id: crypto.randomUUID(),
       name: newUserName.trim(),
       role: newUserRole,
     };
-    addUser(user, "a1");
+    addUser(user, currentUser?.id || "a1", newUserPassword);
     setNewUserName("");
+    setNewUserPassword("");
   };
 
   const handleSettingsChange = (field: keyof typeof settings, value: any) => {
@@ -495,12 +500,22 @@ export const AdminDashboard = () => {
               <div className="bg-gray-50/50 p-6 rounded-[24px] border border-gray-100 space-y-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Add New Staff Member</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-                  <div className="sm:col-span-2 lg:col-span-6">
+                  <div className="sm:col-span-2 lg:col-span-4">
                     <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Full Name</label>
                     <Input
                       placeholder="e.g. John Doe"
                       value={newUserName}
                       onChange={(e) => setNewUserName(e.target.value)}
+                      className="h-12 text-sm bg-white border-gray-200 focus:border-brand-burgundy rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Security Password</label>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
                       className="h-12 text-sm bg-white border-gray-200 focus:border-brand-burgundy rounded-xl font-bold"
                     />
                   </div>
@@ -516,7 +531,7 @@ export const AdminDashboard = () => {
                       <option value="admin">Admin</option>
                     </select>
                   </div>
-                  <div className="col-span-1 lg:col-span-3 flex items-end">
+                  <div className="col-span-1 lg:col-span-2 flex items-end">
                     <Button onClick={handleCreateUser} className="h-12 w-full rounded-xl bg-brand-burgundy hover:bg-red-900 text-white font-bold shadow-lg shadow-brand-burgundy/20">
                       <PlusCircle className="h-4 w-4 mr-2" /> Add
                     </Button>
