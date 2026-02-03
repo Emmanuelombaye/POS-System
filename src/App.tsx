@@ -3,10 +3,10 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
 import { supabase } from "@/utils/supabase";
 import { LoginPage } from "@/pages/auth/LoginPage";
-import { CashierDashboard } from "@/pages/cashier/CashierDashboard";
+import { ModernCashierDashboard } from "@/pages/cashier/ModernCashierDashboard";
 import { ShiftStock } from "@/pages/cashier/ShiftStock";
 import { ManagerDashboard } from "@/pages/manager/ManagerDashboard";
-import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { ModernAdminDashboard } from "@/pages/admin/ModernAdminDashboard";
 import { ShiftReconciliation } from "@/pages/admin/ShiftReconciliation";
 import { WholesaleDesk } from "@/components/wholesale/WholesaleDesk";
 import { useAppStore } from "@/store/appStore";
@@ -106,7 +106,7 @@ export const App = () => {
               path="/cashier"
               element={
                 <RequireRole role="cashier">
-                  <CashierDashboard />
+                  <ModernCashierDashboard />
                 </RequireRole>
               }
             />
@@ -130,7 +130,7 @@ export const App = () => {
               path="/admin"
               element={
                 <RequireRole role="admin">
-                  <AdminDashboard />
+                  <ModernAdminDashboard />
                 </RequireRole>
               }
             />

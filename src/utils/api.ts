@@ -39,7 +39,16 @@ export const api = {
             headers: getHeaders(),
             body: JSON.stringify(data),
         });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.statusText}`;
+            try {
+                const errorBody = await response.json();
+                if (errorBody?.error) errorMessage = errorBody.error;
+            } catch (_err) {
+                // ignore json parsing errors
+            }
+            throw new Error(errorMessage);
+        }
         return response.json();
     },
 

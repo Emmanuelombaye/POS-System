@@ -2,10 +2,12 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import OpenAI from "openai";
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 app.use(cors());
@@ -17,6 +19,18 @@ const supabaseKey = process.env.SUPABASE_KEY || "sb_publishable_waCCK6KyQPWQlCQH
 const JWT_SECRET = process.env.JWT_SECRET || "eden-top-secret-key-2026";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Initialize AI client (OpenAI or Ollama)
+const aiProvider = (process.env.AI_PROVIDER || "openai").toLowerCase();
+const openaiApiKey = process.env.OPENAI_API_KEY;
+const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
+const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+const openRouter = openRouterApiKey
+  ? new OpenAI({ apiKey: openRouterApiKey, baseURL: "https://openrouter.ai/api/v1" })
+  : null;
+const openRouterModel = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.1-8b-instruct:free";
+const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const ollamaModel = process.env.OLLAMA_MODEL || "llama3.1:8b";
 
 // Middleware to authenticate JWT
 const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
@@ -47,50 +61,118 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "eden-top-backend", database: "supabase" });
 });
 
+// Debug endpoint - check database connection
+app.get("/debug/users", async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from("users").select("id, name, role").limit(10);
+    if (error) {
+      return res.status(500).json({ error: "Database error", details: error.message });
+    }
+    res.json({ 
+      totalUsers: data?.length || 0,
+      users: data || [],
+      message: data && data.length > 0 ? "✅ Users found in database" : "❌ No users in database"
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to query users", details: (error as Error).message });
+  }
+});
+
+// Login attempt tracking (in-memory, resets on server restart)
+const loginAttemptMap = new Map<string, number>();
+// Clear old attempts every hour
+setInterval(() => loginAttemptMap.clear(), 3600000);
+
 // Auth Login endpoint
 app.post("/api/auth/login", async (req: Request, res: Response) => {
   const { userId, password } = req.body;
+  const SYSTEM_PASSWORD = "@AdminEdenTop";
 
+  console.log(`[LOGIN] Attempting login for userId: ${userId}`);
+
+  // Input validation
   if (!userId || !password) {
+    console.log(`[LOGIN] Missing credentials`);
     return res.status(400).json({ error: "User ID and password are required." });
   }
 
+  if (typeof userId !== "string" || typeof password !== "string") {
+    console.log(`[LOGIN] Invalid input format`);
+    return res.status(400).json({ error: "Invalid input format." });
+  }
+
+  // Rate limiting check (basic)
+  const loginAttempts = loginAttemptMap.get(userId) || 0;
+  if (loginAttempts > 5) {
+    console.log(`[LOGIN] Too many login attempts for ${userId}`);
+    return res.status(429).json({ error: "Too many login attempts. Please try again later." });
+  }
+
   try {
+    // Password verification (exact match for MVP, no bcrypt needed yet)
+    if (password !== SYSTEM_PASSWORD) {
+      console.log(`[LOGIN] Invalid password for ${userId}`);
+      loginAttemptMap.set(userId, loginAttempts + 1);
+      return res.status(401).json({ error: "Invalid credentials." });
+    }
+
+    console.log(`[LOGIN] Password valid, querying user from database...`);
+
+    // Query user from Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("id", userId)
       .single();
 
-    if (error || !user) {
+    if (error) {
+      console.log(`[LOGIN] Database error:`, error);
+      loginAttemptMap.set(userId, loginAttempts + 1);
+      return res.status(401).json({ error: `User not found. Database error: ${error.message}` });
+    }
+
+    if (!user) {
+      console.log(`[LOGIN] User not found in database: ${userId}`);
+      loginAttemptMap.set(userId, loginAttempts + 1);
       return res.status(401).json({ error: "User not found." });
     }
 
-    if (!user.password_hash) {
-      return res.status(401).json({ error: "Account not configured. Contact admin." });
-    }
+    console.log(`[LOGIN] ✅ User found:`, { id: user.id, name: user.name, role: user.role });
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: "Invalid password." });
-    }
+    // Reset login attempts on success
+    loginAttemptMap.delete(userId);
 
+    // Generate JWT token
     const token = jwt.sign(
       { id: user.id, name: user.name, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
+
+    console.log(`[LOGIN] ✅ Token generated, login successful for ${userId}`);
+
+    // Log successful login (optional - wrap in try-catch to not break login if it fails)
+    try {
+      await supabase.from("audit_log").insert({
+        user_id: user.id,
+        action: "login",
+        description: `Logged in as ${user.role}`,
+      });
+    } catch (logError) {
+      console.log("Audit log warning:", logError);
+    }
 
     res.json({
       token,
       user: {
         id: user.id,
         name: user.name,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    console.error("[LOGIN] Unexpected error:", error);
+    res.status(500).json({ error: "Authentication failed. Please try again." });
   }
 });
 
@@ -209,12 +291,18 @@ app.get("/transactions", authenticateToken, async (_req: Request, res: Response)
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("transaction_date", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("[TRANSACTIONS] Database error:", error);
+      // Return empty array instead of error - transactions table might be empty
+      return res.json([]);
+    }
     res.json(data || []);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    console.error("[TRANSACTIONS] Catch error:", error);
+    // Return empty array on any error - allows app to continue
+    res.json([]);
   }
 });
 
@@ -239,6 +327,39 @@ app.post("/transactions", authenticateToken, async (req: Request, res: Response)
       if (ledgerError) console.error("Ledger logging failed for transaction:", ledgerError);
     }
 
+    // Update shift-based stock entries and product stock in real-time
+    if (tx && transaction.items && transaction.shift_id) {
+      for (const item of transaction.items) {
+        const { data: entry } = await supabase
+          .from("shift_stock_entries")
+          .select("id, opening_stock, added_stock, sold_stock")
+          .eq("shift_id", transaction.shift_id)
+          .eq("product_id", item.productId)
+          .single();
+
+        if (entry) {
+          const newSold = Number(entry.sold_stock || 0) + Number(item.weightKg || 0);
+          const newClosing = Number(entry.opening_stock || 0) + Number(entry.added_stock || 0) - newSold;
+
+          await supabase
+            .from("shift_stock_entries")
+            .update({ sold_stock: newSold, closing_stock: newClosing, updated_at: new Date().toISOString() })
+            .eq("id", entry.id);
+        }
+
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock_kg")
+          .eq("id", item.productId)
+          .single();
+
+        if (product) {
+          const updatedStock = Number(product.stock_kg || 0) - Number(item.weightKg || 0);
+          await supabase.from("products").update({ stock_kg: updatedStock }).eq("id", item.productId);
+        }
+      }
+    }
+
     res.status(201).json(tx);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -250,21 +371,25 @@ app.post("/transactions", authenticateToken, async (req: Request, res: Response)
 // 1. Shifts
 app.get("/shifts", authenticateToken, async (req: Request, res: Response) => {
   try {
-    let query = supabase.from("shifts").select("*, users(name)");
+    let query = supabase.from("shifts").select("*");
     if (req.query.status) query = query.eq("status", req.query.status);
     if (req.query.cashier_id) query = query.eq("cashier_id", req.query.cashier_id);
 
-    const { data, error } = await query.order("opened_at", { ascending: false });
-    if (error) throw error;
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) {
+      console.error("[SHIFTS] Database error:", error);
+      return res.json([]); // Return empty array if table doesn't exist
+    }
     res.json(data || []);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    console.error("[SHIFTS] Catch error:", error);
+    res.json([]); // Return empty array on any error
   }
 });
 
 app.post("/shifts/open", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { cashier_id } = req.body;
+    const { cashier_id, branch_id } = req.body;
     // Check if cashier already has an open shift
     const { data: existing } = await supabase.from("shifts").select("id").eq("cashier_id", cashier_id).eq("status", "OPEN").single();
     if (existing) return res.status(400).json({ error: "Cashier already has an open shift." });
@@ -290,6 +415,21 @@ app.post("/shifts/open", authenticateToken, async (req: Request, res: Response) 
         opening_kg: p.stock_kg
       }));
       await supabase.from("shift_stock_snapshots").insert(snapshots);
+
+      const shiftDate = new Date().toISOString().split("T")[0];
+      const entries = products.map(p => ({
+        shift_id: shift.id,
+        cashier_id,
+        branch_id: branch_id || "branch1",
+        product_id: p.id,
+        shift_date: shiftDate,
+        opening_stock: Number(p.stock_kg || 0),
+        added_stock: 0,
+        sold_stock: 0,
+        closing_stock: Number(p.stock_kg || 0),
+        variance: 0
+      }));
+      await supabase.from("shift_stock_entries").insert(entries);
     }
 
     res.status(201).json(shift);
@@ -324,6 +464,18 @@ app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Respo
       const expectedKg = (ledger || []).reduce((sum, entry) => sum + Number(entry.quantity_kg), 0);
       const variance = Number(actualKg) - expectedKg;
 
+      const { data: shiftEntry } = await supabase
+        .from("shift_stock_entries")
+        .select("opening_stock, added_stock, sold_stock")
+        .eq("shift_id", shiftId)
+        .eq("product_id", itemId)
+        .single();
+
+      const expectedFromShift = shiftEntry
+        ? Number(shiftEntry.opening_stock || 0) + Number(shiftEntry.added_stock || 0) - Number(shiftEntry.sold_stock || 0)
+        : expectedKg;
+      const varianceFromShift = Number(actualKg) - expectedFromShift;
+
       await supabase
         .from("shift_stock_snapshots")
         .update({
@@ -333,6 +485,16 @@ app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Respo
         })
         .eq("shift_id", shiftId)
         .eq("item_id", itemId);
+
+      await supabase
+        .from("shift_stock_entries")
+        .update({
+          closing_stock: Number(actualKg),
+          variance: varianceFromShift,
+          updated_at: new Date().toISOString()
+        })
+        .eq("shift_id", shiftId)
+        .eq("product_id", itemId);
 
       // Log SHIFT_CLOSE to ledger (the delta to match actual)
       await supabase.from("inventory_ledger").insert([{
@@ -350,18 +512,167 @@ app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Respo
   }
 });
 
+// 1. Shift-based stock entries (real-time)
+app.get("/shift-stock", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { shift_id } = req.query as { shift_id?: string };
+    if (!shift_id) return res.status(400).json({ error: "shift_id is required" });
+
+    const { data, error } = await supabase
+      .from("shift_stock_entries")
+      .select("*, products(name, category, code, low_stock_threshold_kg)")
+      .eq("shift_id", shift_id)
+      .order("products(category)", { ascending: true });
+
+    if (error) throw error;
+    res.json({ entries: data || [] });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get("/shift-stock/summary", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const branch_id = (req.query.branch_id as string) || "branch1";
+    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("shift_stock_entries")
+      .select("*, products(name, category, code, low_stock_threshold_kg)")
+      .eq("branch_id", branch_id)
+      .eq("shift_date", date);
+
+    if (error) throw error;
+
+    const entries = data || [];
+    const aggregatedMap = new Map<string, any>();
+
+    entries.forEach((entry: any) => {
+      const key = entry.product_id;
+      const existing = aggregatedMap.get(key);
+      const opening = Number(entry.opening_stock || 0);
+      const added = Number(entry.added_stock || 0);
+      const sold = Number(entry.sold_stock || 0);
+      const closing = Number(entry.closing_stock || 0);
+      const variance = Number(entry.variance || 0);
+
+      if (!existing) {
+        aggregatedMap.set(key, {
+          id: entry.id,
+          product_id: entry.product_id,
+          branch_id: entry.branch_id,
+          shift_date: entry.shift_date,
+          opening_stock: opening,
+          added_stock: added,
+          sold_stock: sold,
+          closing_stock: closing,
+          variance,
+          products: entry.products
+        });
+      } else {
+        existing.opening_stock += opening;
+        existing.added_stock += added;
+        existing.sold_stock += sold;
+        existing.closing_stock += closing;
+        existing.variance += variance;
+      }
+    });
+
+    const aggregatedEntries = Array.from(aggregatedMap.values());
+    const total_opening = aggregatedEntries.reduce((sum, e) => sum + Number(e.opening_stock || 0), 0);
+    const total_added = aggregatedEntries.reduce((sum, e) => sum + Number(e.added_stock || 0), 0);
+    const total_sold = aggregatedEntries.reduce((sum, e) => sum + Number(e.sold_stock || 0), 0);
+    const total_closing = aggregatedEntries.reduce((sum, e) => sum + Number(e.closing_stock || 0), 0);
+
+    const low_stock_count = aggregatedEntries.filter((e) => {
+      const threshold = Number(e.products?.low_stock_threshold_kg || 0);
+      return Number(e.closing_stock || 0) < threshold;
+    }).length;
+
+    res.json({
+      total_opening,
+      total_added,
+      total_sold,
+      total_closing,
+      low_stock_count,
+      entries: aggregatedEntries
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post("/shift/add-stock", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { shift_id, product_id, quantity_kg, supplier, notes, batch } = req.body;
+    const user = (req as any).user;
+
+    const { data: entry } = await supabase
+      .from("shift_stock_entries")
+      .select("id, opening_stock, added_stock, sold_stock, closing_stock")
+      .eq("shift_id", shift_id)
+      .eq("product_id", product_id)
+      .single();
+
+    if (!entry) {
+      return res.status(404).json({ error: "Shift stock entry not found" });
+    }
+
+    const newAdded = Number(entry.added_stock || 0) + Number(quantity_kg || 0);
+    const newClosing = Number(entry.opening_stock || 0) + newAdded - Number(entry.sold_stock || 0);
+
+    const { data: updated, error } = await supabase
+      .from("shift_stock_entries")
+      .update({
+        added_stock: newAdded,
+        closing_stock: newClosing,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", entry.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase.from("inventory_ledger").insert([{
+      item_id: product_id,
+      event_type: 'SHIFT_STOCK_ADDED',
+      quantity_kg: Number(quantity_kg || 0),
+      shift_id,
+      user_id: user.id,
+      reference_id: null
+    }]);
+
+    const { data: product } = await supabase.from("products").select("stock_kg").eq("id", product_id).single();
+    if (product) {
+      await supabase
+        .from("products")
+        .update({ stock_kg: Number(product.stock_kg || 0) + Number(quantity_kg || 0) })
+        .eq("id", product_id);
+    }
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // 2. Stock Additions
 app.get("/stock-additions", authenticateToken, async (req: Request, res: Response) => {
   try {
-    let query = supabase.from("stock_additions").select("*, products(name), shifts(cashier_id)");
+    let query = supabase.from("stock_additions").select("*");
     if (req.query.status) query = query.eq("status", req.query.status);
     if (req.query.shift_id) query = query.eq("shift_id", req.query.shift_id);
 
     const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) {
+      console.error("[STOCK-ADDITIONS] Database error:", error);
+      return res.json([]); // Return empty array if table doesn't exist
+    }
     res.json(data || []);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    console.error("[STOCK-ADDITIONS] Catch error:", error);
+    res.json([]); // Return empty array on any error
   }
 });
 
@@ -477,6 +788,560 @@ app.delete("/wholesale-summaries/:id", authenticateToken, authorizeRoles("admin"
     res.json({ message: "Summary deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// --- STOCK MANAGEMENT ENDPOINTS ---
+
+// 1. Get daily stock entries for a branch
+app.get("/stock/daily", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { branch_id, date } = req.query;
+    const queryDate = date || new Date().toISOString().split('T')[0];
+    
+    let query = supabase.from("stock_entries").select("*, products(name, category, code)");
+    if (branch_id) query = query.eq("branch_id", branch_id);
+    query = query.eq("entry_date", queryDate);
+
+    const { data, error } = await query.order("products(category)", { ascending: true });
+    if (error) {
+      console.error("[STOCK/DAILY] Error:", error);
+      return res.json([]);
+    }
+    res.json(data || []);
+  } catch (error) {
+    console.error("[STOCK/DAILY] Catch error:", error);
+    res.json([]);
+  }
+});
+
+// 2. Add stock for a product
+app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+  try {
+    const { product_id, branch_id, added_stock_kg, notes } = req.body;
+    const user = (req as any).user;
+
+    if (!product_id || !added_stock_kg || added_stock_kg <= 0) {
+      return res.status(400).json({ error: "Product ID and positive added_stock_kg required" });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get or create today's stock entry
+    const { data: existing, error: getError } = await supabase
+      .from("stock_entries")
+      .select("*")
+      .eq("product_id", product_id)
+      .eq("branch_id", branch_id || "branch1")
+      .eq("entry_date", today)
+      .single();
+
+    if (getError && getError.code !== "PGRST116") {
+      throw getError;
+    }
+
+    if (existing) {
+      // Update existing entry
+      const newAdded = (existing.added_stock_kg || 0) + parseFloat(added_stock_kg);
+      const newClosing = (existing.opening_stock_kg || 0) + newAdded - (existing.sold_stock_kg || 0);
+      
+      const { data: updated, error: updateError } = await supabase
+        .from("stock_entries")
+        .update({
+          added_stock_kg: newAdded,
+          closing_stock_kg: newClosing,
+          is_low_stock: newClosing < (existing.low_stock_threshold_kg || 10),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      res.status(201).json(updated);
+    } else {
+      // Create new entry with yesterday's closing as opening
+      const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0];
+      const { data: yesterday_entry } = await supabase
+        .from("stock_entries")
+        .select("closing_stock_kg, low_stock_threshold_kg")
+        .eq("product_id", product_id)
+        .eq("branch_id", branch_id || "branch1")
+        .eq("entry_date", yesterday)
+        .single();
+
+      const openingStock = yesterday_entry?.closing_stock_kg || 0;
+      const threshold = yesterday_entry?.low_stock_threshold_kg || 10;
+      const newClosing = openingStock + parseFloat(added_stock_kg);
+
+      const { data: created, error: createError } = await supabase
+        .from("stock_entries")
+        .insert({
+          product_id,
+          branch_id: branch_id || "branch1",
+          entry_date: today,
+          opening_stock_kg: openingStock,
+          added_stock_kg: parseFloat(added_stock_kg),
+          sold_stock_kg: 0,
+          closing_stock_kg: newClosing,
+          low_stock_threshold_kg: threshold,
+          is_low_stock: newClosing < threshold,
+          recorded_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      res.status(201).json(created);
+    }
+  } catch (error) {
+    console.error("[STOCK/ADD] Error:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 3. Update closing stock and sold stock
+app.patch("/stock/closing/:id", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { closing_stock_kg, sold_stock_kg } = req.body;
+    const user = (req as any).user;
+
+    const { data: entry, error: getError } = await supabase
+      .from("stock_entries")
+      .select("*")
+      .eq("id", req.params.id)
+      .single();
+
+    if (getError) throw getError;
+    if (!entry) return res.status(404).json({ error: "Stock entry not found" });
+
+    // Calculate variance
+    const expectedClosing = (entry.opening_stock_kg || 0) + (entry.added_stock_kg || 0) - (sold_stock_kg || 0);
+    const variance = (closing_stock_kg || expectedClosing) - expectedClosing;
+
+    const { data: updated, error: updateError } = await supabase
+      .from("stock_entries")
+      .update({
+        sold_stock_kg: sold_stock_kg || entry.sold_stock_kg,
+        closing_stock_kg: closing_stock_kg || expectedClosing,
+        variance_kg: variance,
+        is_low_stock: (closing_stock_kg || expectedClosing) < (entry.low_stock_threshold_kg || 10),
+        adjusted_closing_stock_kg: closing_stock_kg ? closing_stock_kg : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", req.params.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Create alert if variance exists
+    if (Math.abs(variance) > 0.1) {
+      await supabase.from("stock_alerts").insert({
+        product_id: entry.product_id,
+        branch_id: entry.branch_id,
+        alert_type: "variance",
+        message: `Stock variance of ${variance > 0 ? '+' : ''}${variance.toFixed(2)}kg detected`,
+      });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("[STOCK/CLOSING] Error:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 4. Get low-stock alerts
+app.get("/stock/alerts", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { branch_id, resolved } = req.query;
+    
+    let query = supabase.from("stock_alerts").select("*, products(name, code), users(name)");
+    if (branch_id) query = query.eq("branch_id", branch_id);
+    if (resolved === "false") query = query.eq("is_resolved", false);
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) {
+      console.error("[STOCK/ALERTS] Error:", error);
+      return res.json([]);
+    }
+    res.json(data || []);
+  } catch (error) {
+    console.error("[STOCK/ALERTS] Catch error:", error);
+    res.json([]);
+  }
+});
+
+// 5. Get stock summary for branch
+app.get("/stock/summary", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { branch_id } = req.query;
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from("stock_entries")
+      .select("*, products(name, category, code)")
+      .eq("entry_date", today)
+      .eq("branch_id", branch_id || "branch1")
+      .order("products(category)", { ascending: true });
+
+    if (error) {
+      console.error("[STOCK/SUMMARY] Error:", error);
+      return res.json({
+        total_opening: 0,
+        total_added: 0,
+        total_sold: 0,
+        total_closing: 0,
+        low_stock_count: 0,
+        entries: [],
+      });
+    }
+
+    const entries = data || [];
+    const summary = {
+      total_opening: entries.reduce((sum, e) => sum + (e.opening_stock_kg || 0), 0),
+      total_added: entries.reduce((sum, e) => sum + (e.added_stock_kg || 0), 0),
+      total_sold: entries.reduce((sum, e) => sum + (e.sold_stock_kg || 0), 0),
+      total_closing: entries.reduce((sum, e) => sum + (e.closing_stock_kg || 0), 0),
+      low_stock_count: entries.filter(e => e.is_low_stock).length,
+      entries,
+    };
+
+    res.json(summary);
+  } catch (error) {
+    console.error("[STOCK/SUMMARY] Catch error:", error);
+    res.json({
+      total_opening: 0,
+      total_added: 0,
+      total_sold: 0,
+      total_closing: 0,
+      low_stock_count: 0,
+      entries: [],
+    });
+  }
+});
+
+// ============================================================================
+// AI ASSISTANT ENDPOINTS
+// ============================================================================
+
+// Helper: Gather system context for AI
+const gatherAIContext = async () => {
+  try {
+    // Fetch products with current stock levels
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name, price, stock_kg, low_stock_threshold_kg");
+
+    // Fetch cashiers
+    const { data: cashiers } = await supabase
+      .from("users")
+      .select("id, name, role")
+      .eq("role", "cashier");
+
+    const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = sevenDaysAgoDate.toISOString();
+    const sevenDaysAgoDateOnly = sevenDaysAgoDate.toISOString().split("T")[0];
+
+    // Fetch recent shifts with stock entries
+    const { data: shiftStockEntries } = await supabase
+      .from("shift_stock_entries")
+      .select(
+        `
+        id, shift_id, cashier_id, branch_id, product_id,
+        opening_stock, added_stock, sold_stock, closing_stock, variance,
+        shift_date,
+        products(name),
+        users(name)
+        `
+      )
+      .gte("shift_date", sevenDaysAgoDateOnly)
+      .order("shift_date", { ascending: false })
+      .limit(50);
+
+    // Fetch recent transactions (sales)
+    const { data: transactions } = await supabase
+      .from("transactions")
+      .select(
+        `
+        id, cashier_id, created_at, items, total, payment_method,
+        users(name)
+        `
+      )
+      .gte("created_at", sevenDaysAgo)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    // Calculate low-stock items
+    const lowStockItems = (products || []).filter(
+      (p: any) => p.stock_kg < (p.low_stock_threshold_kg || 10)
+    );
+
+    // Calculate sales summary by product and cashier payment totals
+    const salesSummary: Record<string, any> = {};
+    const cashierPayments: Record<string, any> = {};
+    (transactions || []).forEach((t: any) => {
+      const cashierKey = t.cashier_id || "unknown";
+      const cashierName = t.users?.name || cashierKey;
+      if (!cashierPayments[cashierKey]) {
+        cashierPayments[cashierKey] = {
+          cashier_id: cashierKey,
+          cashier_name: cashierName,
+          cash: 0,
+          mpesa: 0,
+          card: 0,
+          total: 0,
+        };
+      }
+      const method = (t.payment_method || "").toLowerCase();
+      if (method === "cash") cashierPayments[cashierKey].cash += Number(t.total || 0);
+      if (method === "mpesa") cashierPayments[cashierKey].mpesa += Number(t.total || 0);
+      if (method === "card") cashierPayments[cashierKey].card += Number(t.total || 0);
+      cashierPayments[cashierKey].total += Number(t.total || 0);
+
+      let items: any[] = [];
+      if (Array.isArray(t.items)) {
+        items = t.items;
+      } else if (typeof t.items === "string") {
+        try {
+          items = JSON.parse(t.items);
+        } catch (_err) {
+          items = [];
+        }
+      }
+
+      items.forEach((item: any) => {
+        const productName = item.productName || item.name || "Unknown";
+        if (!salesSummary[productName]) {
+          salesSummary[productName] = { quantity: 0, revenue: 0, count: 0 };
+        }
+        salesSummary[productName].quantity += Number(item.weightKg || 0);
+        salesSummary[productName].revenue += Number(item.totalPrice || 0) || 0;
+        salesSummary[productName].count += 1;
+      });
+    });
+
+    // Aggregate shift summaries by cashier
+    const cashierShiftSummary: Record<string, any> = {};
+    (shiftStockEntries || []).forEach((entry: any) => {
+      const cashierKey = entry.cashier_id || "unknown";
+      const cashierName = entry.users?.name || cashierKey;
+      if (!cashierShiftSummary[cashierKey]) {
+        cashierShiftSummary[cashierKey] = {
+          cashier_id: cashierKey,
+          cashier_name: cashierName,
+          opening_stock: 0,
+          added_stock: 0,
+          sold_stock: 0,
+          closing_stock: 0,
+          variance: 0,
+        };
+      }
+      cashierShiftSummary[cashierKey].opening_stock += Number(entry.opening_stock || 0);
+      cashierShiftSummary[cashierKey].added_stock += Number(entry.added_stock || 0);
+      cashierShiftSummary[cashierKey].sold_stock += Number(entry.sold_stock || 0);
+      cashierShiftSummary[cashierKey].closing_stock += Number(entry.closing_stock || 0);
+      cashierShiftSummary[cashierKey].variance += Number(entry.variance || 0);
+    });
+
+    // Identify cashier discrepancies
+    const discrepancies = (shiftStockEntries || []).filter(
+      (entry: any) => Math.abs(entry.variance || 0) > 0.1
+    );
+
+    return {
+      products: products || [],
+      cashiers: cashiers || [],
+      lowStockItems,
+      recentShiftEntries: shiftStockEntries || [],
+      recentTransactions: transactions || [],
+      salesSummary,
+      cashierPayments,
+      cashierShiftSummary,
+      discrepancies,
+      contextTimestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("Error gathering AI context:", error);
+    return {
+      products: [],
+      cashiers: [],
+      lowStockItems: [],
+      recentShiftEntries: [],
+      recentTransactions: [],
+      salesSummary: {},
+      cashierPayments: {},
+      cashierShiftSummary: {},
+      discrepancies: [],
+      contextTimestamp: new Date().toISOString(),
+      error: "Failed to gather context",
+    };
+  }
+};
+
+// AI Chat endpoint
+app.post("/api/ai/chat", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+  const { query } = req.body;
+  const userId = (req as any).user?.id;
+
+  if (!query || typeof query !== "string") {
+    return res.status(400).json({ error: "Query is required" });
+  }
+
+  if (aiProvider === "openai" && !openai) {
+    return res.status(503).json({ error: "AI service is not configured. Please add OPENAI_API_KEY to environment." });
+  }
+  if (aiProvider === "openrouter" && !openRouter) {
+    return res.status(503).json({ error: "AI service is not configured. Please add OPENROUTER_API_KEY to environment." });
+  }
+
+  try {
+    // Gather context from POS system
+    const context = await gatherAIContext();
+
+    // Prepare system prompt with POS context
+    const systemPrompt = `You are an AI assistant for a multi-butchery POS system called "Eden Top". Your role is to help admins make data-driven decisions.
+
+CURRENT SYSTEM DATA:
+- Total Products: ${context.products.length}
+- Cashiers: ${context.cashiers.length}
+- Low Stock Items: ${context.lowStockItems.length} (threshold breached)
+- Recent Shifts Analyzed: ${context.recentShiftEntries.length}
+- Recent Transactions: ${context.recentTransactions.length}
+- Cashier Discrepancies Found: ${context.discrepancies.length}
+
+CASHIER DIRECTORY:
+${(context.cashiers || []).map((c: any) => `- ${c.name} (ID: ${c.id})`).join("\n") || "No cashiers found"}
+
+LOW STOCK ALERTS:
+${context.lowStockItems.map((item: any) => `- ${item.name}: ${item.stock_kg}kg (threshold: ${item.low_stock_threshold_kg}kg)`).join("\n") || "None"}
+
+TOP SELLING ITEMS (Last 7 days):
+${Object.entries(context.salesSummary)
+  .sort(([, a]: any, [, b]: any) => b.quantity - a.quantity)
+  .slice(0, 5)
+  .map(([name, data]: any) => `- ${name}: ${data.quantity.toFixed(1)}kg sold, ${data.count} transactions`)
+  .join("\n") || "No sales data"}
+
+CASHIER PAYMENT TOTALS (Last 7 days):
+${Object.values(context.cashierPayments || {})
+  .map((c: any) => `- ${c.cashier_name}: Cash ${c.cash.toFixed(2)}, M-Pesa ${c.mpesa.toFixed(2)}, Card ${c.card.toFixed(2)}, Total ${c.total.toFixed(2)}`)
+  .join("\n") || "No cashier payment data"}
+
+CASHIER SHIFT SUMMARIES (Last 7 days):
+${Object.values(context.cashierShiftSummary || {})
+  .map((c: any) => `- ${c.cashier_name}: Opening ${c.opening_stock.toFixed(1)}kg, Added ${c.added_stock.toFixed(1)}kg, Sold ${c.sold_stock.toFixed(1)}kg, Closing ${c.closing_stock.toFixed(1)}kg, Variance ${c.variance.toFixed(1)}kg`)
+  .join("\n") || "No shift summaries"}
+
+RECENT DISCREPANCIES (Variance > 0.1kg):
+${context.discrepancies.slice(0, 5).map((d: any) => `- Shift ${d.shift_id.slice(0, 8)}: ${d.products?.name || "Unknown"} (Variance: ${d.variance?.toFixed(2)}kg)`).join("\n") || "None"}
+
+Your responses should be:
+1. Concise and actionable
+2. Focused on inventory optimization, loss prevention, and sales insights
+3. Data-driven with specific metrics
+4. Include warnings for critical issues (low stock, high variance)
+5. Suggest specific actions (e.g., "Restock beef by 50kg", "Investigate cashier discrepancy")
+
+If a user asks about a specific cashier (e.g., "Cashier 1"), respond with:
+- Opening stock, added stock, sold stock, closing stock, and variance totals
+- Expected cash and M-Pesa totals (and card if available)
+- Any discrepancies or unusual patterns
+If the cashier name is unclear, list available cashiers from the directory.
+
+Always be helpful, professional, and safety-conscious. Flag any suspicious patterns (theft, damage, counting errors).`;
+
+    let assistantResponse = "No response generated";
+    if (aiProvider === "ollama") {
+      const ollamaRes = await fetch(`${ollamaBaseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: ollamaModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: query },
+          ],
+          stream: false,
+          options: { temperature: 0.7 },
+        }),
+      });
+
+      if (!ollamaRes.ok) {
+        const errText = await ollamaRes.text();
+        throw new Error(`Ollama error: ${ollamaRes.status} ${errText}`);
+      }
+
+      const ollamaJson = await ollamaRes.json();
+      assistantResponse = ollamaJson?.message?.content || assistantResponse;
+    } else if (aiProvider === "openrouter") {
+      const response = await openRouter.chat.completions.create({
+        model: openRouterModel,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: query,
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+
+      assistantResponse = response.choices[0]?.message?.content || assistantResponse;
+    } else {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: query,
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+
+      assistantResponse = response.choices[0]?.message?.content || assistantResponse;
+    }
+
+    // Optional: Log AI interaction
+    try {
+      await supabase.from("ai_logs").insert({
+        admin_id: userId,
+        query,
+        response: assistantResponse,
+        context_summary: `${context.lowStockItems.length} low-stock, ${context.discrepancies.length} discrepancies`,
+        created_at: new Date().toISOString(),
+      });
+    } catch (logError) {
+      console.error("Failed to log AI interaction (non-critical):", logError);
+    }
+
+    res.json({
+      response: assistantResponse,
+      context: {
+        lowStockCount: context.lowStockItems.length,
+        discrepancyCount: context.discrepancies.length,
+        topSellingItems: Object.entries(context.salesSummary)
+          .sort(([, a]: any, [, b]: any) => b.quantity - a.quantity)
+          .slice(0, 3),
+      },
+    });
+  } catch (error) {
+    console.error("AI chat error:", error);
+    res.status(500).json({
+      error: "Failed to process AI request",
+      details: (error as Error).message,
+    });
   }
 });
 

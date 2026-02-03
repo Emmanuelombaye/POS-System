@@ -7,18 +7,33 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Package, Lock, CheckCircle2, History, AlertCircle } from "lucide-react";
 import { formatDateTime } from "@/utils/format";
 import { motion, AnimatePresence } from "framer-motion";
+import { api } from "@/utils/api";
+
+interface ShiftStockEntry {
+    id: string;
+    product_id: string;
+    opening_stock: number;
+    added_stock: number;
+    sold_stock: number;
+    closing_stock: number;
+    variance: number;
+    products: {
+        name: string;
+        category: string;
+        code: string;
+    };
+}
 
 export const ShiftStock = () => {
     const {
         currentUser,
         activeShift,
+        currentBranch,
         products,
         recentShifts,
         openShift,
         closeShift,
-        addStockAddition,
         fetchShifts,
-        fetchPendingAdditions
     } = useAppStore();
 
     const [isAddingStock, setIsAddingStock] = useState(false);
@@ -26,37 +41,63 @@ export const ShiftStock = () => {
     const [quantityKg, setQuantityKg] = useState<number | "">("");
     const [supplier, setSupplier] = useState("");
     const [notes, setNotes] = useState("");
+    const [batchNumber, setBatchNumber] = useState("");
+
+    const [shiftEntries, setShiftEntries] = useState<ShiftStockEntry[]>([]);
+    const [loadingShiftEntries, setLoadingShiftEntries] = useState(false);
 
     const [closingCounts, setClosingCounts] = useState<Record<ProductId, number>>({});
     const [isClosingShift, setIsClosingShift] = useState(false);
 
     useEffect(() => {
         fetchShifts();
-        fetchPendingAdditions();
-    }, [fetchShifts, fetchPendingAdditions]);
+    }, [fetchShifts]);
+
+    const fetchShiftEntries = async () => {
+        if (!activeShift) return;
+        try {
+            setLoadingShiftEntries(true);
+            const data = await api.get(`/shift-stock?shift_id=${activeShift.id}`);
+            setShiftEntries(data.entries || []);
+        } catch (error) {
+            console.error("Error fetching shift stock entries:", error);
+        } finally {
+            setLoadingShiftEntries(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!activeShift) return;
+        fetchShiftEntries();
+        const interval = setInterval(fetchShiftEntries, 8000);
+        return () => clearInterval(interval);
+    }, [activeShift?.id]);
 
     const handleOpenShift = async () => {
         if (currentUser) {
-            await openShift(currentUser.id);
+            await openShift(currentUser.id, currentBranch);
         }
     };
 
     const handleAddStock = async () => {
         if (!activeShift || !selectedProductId || !quantityKg) return;
 
-        await addStockAddition({
-            shiftId: activeShift.id,
-            itemId: selectedProductId,
-            quantityKg: Number(quantityKg),
+        await api.post("/shift/add-stock", {
+            shift_id: activeShift.id,
+            product_id: selectedProductId,
+            quantity_kg: Number(quantityKg),
             supplier,
-            notes
+            notes,
+            batch: batchNumber
         });
+        await fetchShiftEntries();
 
         setIsAddingStock(false);
         setSelectedProductId("");
         setQuantityKg("");
         setSupplier("");
         setNotes("");
+        setBatchNumber("");
     };
 
     const handleCloseShift = async () => {
@@ -159,6 +200,58 @@ export const ShiftStock = () => {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-brand-burgundy/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
             </div>
 
+            {/* Live Shift Stock Table */}
+            <Card className="border-none shadow-premium rounded-[32px] bg-white overflow-hidden">
+                <CardHeader className="p-8 pb-4">
+                    <CardTitle className="text-xl font-black text-brand-charcoal uppercase tracking-tight flex items-center gap-3">
+                        <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
+                            <Package className="h-6 w-6" />
+                        </div>
+                        Shift Stock Dashboard
+                    </CardTitle>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Opening | Added | Sold | Current (Live)</p>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {loadingShiftEntries ? (
+                        <div className="p-8 text-center text-gray-400 font-semibold">Loading live stock...</div>
+                    ) : shiftEntries.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400 font-semibold">No shift stock entries yet</div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-gray-100 bg-gray-50/50">
+                                        <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Product</th>
+                                        <th className="text-right py-4 px-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Opening</th>
+                                        <th className="text-right py-4 px-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Added</th>
+                                        <th className="text-right py-4 px-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Sold</th>
+                                        <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Current</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {shiftEntries.map((entry) => (
+                                        <tr key={entry.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/40 transition-colors">
+                                            <td className="py-4 px-6">
+                                                <div className="font-black text-brand-charcoal uppercase tracking-tight truncate">
+                                                    {entry.products?.name}
+                                                </div>
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                                    {entry.products?.category}
+                                                </div>
+                                            </td>
+                                            <td className="text-right py-4 px-4 font-bold text-gray-700">{Number(entry.opening_stock || 0).toFixed(1)}kg</td>
+                                            <td className="text-right py-4 px-4 font-bold text-emerald-600">+{Number(entry.added_stock || 0).toFixed(1)}kg</td>
+                                            <td className="text-right py-4 px-4 font-bold text-red-500">-{Number(entry.sold_stock || 0).toFixed(1)}kg</td>
+                                            <td className="text-right py-4 px-6 font-black text-brand-burgundy">{Number(entry.closing_stock || 0).toFixed(1)}kg</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Record Addition Section */}
                 <Card className="border-none shadow-premium rounded-[32px] overflow-hidden">
@@ -210,6 +303,16 @@ export const ShiftStock = () => {
                             </div>
 
                             <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Batch / Lot (Optional)</label>
+                                <Input
+                                    placeholder="e.g. Batch #A32"
+                                    className="h-14 rounded-2xl bg-gray-50/50 border-2 border-transparent focus:border-brand-burgundy font-bold"
+                                    value={batchNumber}
+                                    onChange={(e) => setBatchNumber(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Internal Notes</label>
                                 <Input
                                     placeholder="Optional details..."
@@ -228,7 +331,7 @@ export const ShiftStock = () => {
                             Declare Delivery
                         </Button>
                         <p className="text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">
-                            Declaring stock adds it to current shift ledger pending admin approval
+                            Declaring stock updates your shift stock in real-time
                         </p>
                     </CardContent>
                 </Card>
@@ -241,6 +344,57 @@ export const ShiftStock = () => {
                                 <div className="p-3 bg-brand-charcoal/5 rounded-2xl text-brand-charcoal">
                                     <Package className="h-6 w-6" />
                                 </div>
+                                Shift Stock Summary
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 pt-4">
+                            {loadingShiftEntries ? (
+                                <div className="text-center py-6 text-gray-500">Loading stock data...</div>
+                            ) : shiftEntries.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-gray-200">
+                                                <th className="text-left py-3 font-black text-gray-600 uppercase tracking-widest text-[10px]">Product</th>
+                                                <th className="text-right py-3 px-2 font-black text-gray-600 uppercase tracking-widest text-[10px]">Opening</th>
+                                                <th className="text-right py-3 px-2 font-black text-gray-600 uppercase tracking-widest text-[10px]">+Added</th>
+                                                <th className="text-right py-3 px-2 font-black text-gray-600 uppercase tracking-widest text-[10px]">-Sold</th>
+                                                <th className="text-right py-3 px-2 font-black text-gray-600 uppercase tracking-widest text-[10px]">Current</th>
+                                                <th className="text-center py-3 px-2 font-black text-gray-600 uppercase tracking-widest text-[10px]">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {shiftEntries.map((entry) => (
+                                                <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                                                    <td className="py-3 font-semibold text-brand-charcoal">{entry.products.name}</td>
+                                                    <td className="text-right py-3 px-2 text-brand-charcoal">{Number(entry.opening_stock || 0).toFixed(1)}kg</td>
+                                                    <td className="text-right py-3 px-2 text-green-600 font-semibold">+{Number(entry.added_stock || 0).toFixed(1)}</td>
+                                                    <td className="text-right py-3 px-2 text-red-600 font-semibold">-{Number(entry.sold_stock || 0).toFixed(1)}</td>
+                                                    <td className="text-right py-3 px-2 text-brand-burgundy font-black">{Number(entry.closing_stock || 0).toFixed(1)}kg</td>
+                                                    <td className="text-center py-3 px-2">
+                                                        {Number(entry.variance || 0) !== 0 && Math.abs(Number(entry.variance || 0)) > 0.1 ? (
+                                                            <span className="inline-block text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded">⚠️ {Number(entry.variance || 0) > 0 ? '+' : ''}{Number(entry.variance || 0).toFixed(1)}</span>
+                                                        ) : (
+                                                            <span className="inline-block text-xs font-bold text-green-600">✓</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-6 text-gray-500">No stock recorded for this shift yet</div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-premium rounded-[32px] bg-white overflow-hidden">
+                        <CardHeader className="p-8 pb-4">
+                            <CardTitle className="text-xl font-black text-brand-charcoal uppercase tracking-tight flex items-center gap-3">
+                                <div className="p-3 bg-brand-charcoal/5 rounded-2xl text-brand-charcoal">
+                                    <AlertCircle className="h-6 w-6" />
+                                </div>
                                 Shift Rules & Guidance
                             </CardTitle>
                         </CardHeader>
@@ -248,9 +402,9 @@ export const ShiftStock = () => {
                             <div className="space-y-4">
                                 {[
                                     { icon: CheckCircle2, text: "Record every meat delivery immediately upon arrival", color: "text-emerald-500" },
-                                    { icon: AlertCircle, text: "You cannot edit or delete stock additions once submitted", color: "text-amber-500" },
-                                    { icon: CheckCircle2, text: "Physical closing counts are required to end your shift", color: "text-emerald-500" },
-                                    { icon: AlertCircle, text: "Variance is auto-calculated and flagged for review", color: "text-brand-burgundy" },
+                                    { icon: AlertCircle, text: "Stock additions update your shift ledger in real-time", color: "text-amber-500" },
+                                    { icon: CheckCircle2, text: "Sales automatically deduct from your current stock", color: "text-emerald-500" },
+                                    { icon: AlertCircle, text: "Variance is auto-calculated at shift close", color: "text-brand-burgundy" },
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-4 items-start p-4 rounded-2xl bg-gray-50/50 border border-gray-100/50">
                                         <item.icon className={`h-5 w-5 mt-0.5 ${item.color}`} />

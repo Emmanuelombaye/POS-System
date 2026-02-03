@@ -174,21 +174,54 @@ curl -X DELETE http://localhost:4000/wholesale-summaries/uuid-here
 - [ ] Can generate report
 - [ ] Can copy/print report
 
+## 🤖 AI Assistant (Admin Only)
+
+The admin dashboard now includes an AI assistant for real-time insights:
+
+### Features
+- **Stock Analysis**: Low-stock alerts, variance detection, restock suggestions
+- **Shift Oversight**: Cashier variance flags, discrepancy analysis
+- **Sales Reports**: Top items, trends, promotion suggestions
+- **System Queries**: Custom questions about your POS data
+
+### Setup (One-time)
+1. Get OpenAI API key: https://platform.openai.com/api-keys
+2. Add to `server/.env`: `OPENAI_API_KEY=sk-your-key`
+3. Restart backend server
+4. Optional: Run AI logs migration in Supabase
+
+### Usage
+1. Log in as admin
+2. Go to Admin Dashboard
+3. Chat window appears bottom-right
+4. Try: "Low stock items", "Cashier discrepancies", "Top selling items"
+
+### Queries
+```
+"Show low stock items in Branch 1"
+"Which cashier has variance today?"
+"What were our top-selling items?"
+"Suggest restock quantity for beef"
+"Any unusual patterns this week?"
+```
+
 ## 🚢 Production Deployment
 
 1. **Backend**: Deploy to Heroku/Railway/Vercel
 2. **Update**: Change `VITE_API_URL` to your backend URL
 3. **Frontend**: Deploy to Vercel/Netlify
-4. **Test**: Verify summaries save and load
+4. **AI Setup**: Add `OPENAI_API_KEY` to backend environment
+5. **Test**: Verify summaries save and AI responses work
 
 ## 📞 Need Help?
 
 1. Check browser console (F12) for errors
 2. Check terminal for server logs
-3. Verify Supabase table exists
+3. Verify Supabase tables exist
 4. Test with cURL: `curl http://localhost:4000/health`
-5. Read `BACKEND_SETUP.md` for detailed troubleshooting
+5. Read `AI_ASSISTANT_GUIDE.md` for AI setup troubleshooting
+6. Read `BACKEND_SETUP.md` for detailed troubleshooting
 
 ---
 
-✅ Backend is ready! Start with Step 1 above.
+✅ Backend is ready! AI Assistant integrated!

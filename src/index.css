@@ -1,18 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   /* --- Light Theme (Default) --- */
-  /* Brand - Burgundy & Charcoal */
-  --brand-burgundy: 0 65% 33%;
-  /* #8B1D1D */
-  --brand-charcoal: 220 39% 11%;
-  /* #111827 */
-  --brand-gold: 41 53% 55%;
-  /* #C9A24D */
-  --brand-offwhite: 0 0% 98%;
-  /* #F9FAFB */
+  /* Brand - EDENTOP Investment Butcheries Luxury Palette */
+  --brand-burgundy: 0 70% 30%;
+  /* #7A1515 Deep Burgundy */
+  --brand-charcoal: 220 20% 13%;
+  /* #1A1E2E Rich Charcoal */
+  --brand-gold: 39 89% 46%;
+  /* #D4A574 Warm Copper Gold */
+  --brand-copper: 24 92% 45%;
+  /* #D87030 Vibrant Copper */
+  --brand-offwhite: 40 20% 96%;
+  /* #F5F1EB Cream Offwhite */
   --brand-secondary: 0 0% 98%;
   /* #FAFAFA */
 

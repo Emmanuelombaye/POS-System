@@ -4,6 +4,7 @@ import { supabase } from "@/utils/supabase";
 import { api } from "@/utils/api";
 
 export type Role = "cashier" | "manager" | "admin";
+export type BranchId = "branch1" | "branch2" | "branch3";
 
 export type ProductId = string;
 export type UserId = string;
@@ -103,6 +104,7 @@ export interface ShiftSnapshot {
 export interface AppState {
   currentUser?: User;
   token?: string;
+  currentBranch: BranchId;
   products: Product[];
   users: User[];
   transactions: Transaction[];
@@ -122,6 +124,7 @@ export interface AppState {
   // actions
   login: (userId: string, password: string) => Promise<void>;
   logout: () => void;
+  setBranch: (branchId: BranchId) => void;
 
   addProductToCart: (product: Product, weightKg: number) => void;
   updateCartItemWeight: (cartItemId: string, weightKg: number) => void;
@@ -232,7 +235,9 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: undefined,
       token: undefined,
-      initialUsers: initialUsers,
+      currentBranch: "branch1",
+      products: initialProducts,
+      users: initialUsers,
       transactions: [],
       auditLog: [],
       settings: initialSettings,
@@ -269,6 +274,10 @@ export const useAppStore = create<AppState>()(
           cashierDiscount: undefined,
           activeShift: undefined
         });
+      },
+
+      setBranch: (branchId: BranchId) => {
+        set({ currentBranch: branchId });
       },
 
       addProductToCart: (product, weightKg) => {

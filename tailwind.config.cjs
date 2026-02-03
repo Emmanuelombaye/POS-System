@@ -12,7 +12,9 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "DM Sans", "system-ui", "sans-serif"],
+        sans: ["Montserrat", "Inter", "system-ui", "sans-serif"],
+        heading: ["Playfair Display", "Georgia", "serif"],
+        display: ["Playfair Display", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -21,13 +23,14 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
 
-        // Brand Palette
+        // Brand Palette - EDENTOP Investment Butcheries
         brand: {
           burgundy: "hsl(var(--brand-burgundy))",
           charcoal: "hsl(var(--brand-charcoal))",
           gold: "hsl(var(--brand-gold))",
           offwhite: "hsl(var(--brand-offwhite))",
           secondary: "hsl(var(--brand-secondary))",
+          copper: "hsl(var(--brand-copper))",
         },
         // Dashboard Pastels
         pastel: {
@@ -35,6 +38,35 @@ module.exports = {
           blue: "hsl(var(--pastel-blue))",
           lavender: "hsl(var(--pastel-lavender))",
           peach: "hsl(var(--pastel-peach))",
+        },
+        // Product Categories (Color-coded)
+        category: {
+          beef: {
+            DEFAULT: "#DC2626", // Red
+            light: "#FEE2E2",
+            dark: "#991B1B",
+          },
+          goat: {
+            DEFAULT: "#16A34A", // Green
+            light: "#DCFCE7",
+            dark: "#166534",
+          },
+          offal: {
+            DEFAULT: "#EA580C", // Orange
+            light: "#FFEDD5",
+            dark: "#9A3412",
+          },
+          processed: {
+            DEFAULT: "#9333EA", // Purple
+            light: "#F3E8FF",
+            dark: "#6B21A8",
+          },
+        },
+        // Branch Colors
+        branch: {
+          1: "#3B82F6", // Blue
+          2: "#10B981", // Emerald
+          3: "#F59E0B", // Amber
         },
 
         primary: {
