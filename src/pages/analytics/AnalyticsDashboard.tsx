@@ -79,15 +79,7 @@ export const AnalyticsDashboard = () => {
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/analytics/kpis?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      const data = await api.get("/api/admin/analytics/kpis", { date: selectedDate });
       setKpis(data);
       setLastRefreshTime(new Date());
     } catch (error) {

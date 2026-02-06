@@ -71,22 +71,18 @@ export const StockManagement = () => {
     setIsLoading(true);
     try {
       // Fetch summary
-      const summaryResponse = await fetch(`http://localhost:4000/api/shift-stock/summary?branch_id=${currentBranch}&date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const summaryData = await api.get("/api/shift-stock/summary", {
+        branch_id: currentBranch,
+        date: selectedDate
       });
-      if (summaryResponse.ok) {
-        const summaryData = await summaryResponse.json();
-        setSummary(summaryData);
-      }
+      setSummary(summaryData);
 
       // Fetch by cashier
-      const cashierResponse = await fetch(`http://localhost:4000/api/shift-stock/by-cashier?branch_id=${currentBranch}&date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const cashierDataResult = await api.get("/api/shift-stock/by-cashier", {
+        branch_id: currentBranch,
+        date: selectedDate
       });
-      if (cashierResponse.ok) {
-        const cashierDataResult = await cashierResponse.json();
-        setCashierData(cashierDataResult);
-      }
+      setCashierData(cashierDataResult);
 
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (error) {

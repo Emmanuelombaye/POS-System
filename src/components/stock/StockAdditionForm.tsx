@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/appStore";
+import { api } from "@/utils/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ export const StockAdditionForm = ({ onClose, onSuccess }: StockAdditionFormProps
 
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:4000/stock/add", {
+      await api.post("/api/shift-stock/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,10 +50,6 @@ export const StockAdditionForm = ({ onClose, onSuccess }: StockAdditionFormProps
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add stock");
-      }
 
       setSuccess(true);
       setSelectedProduct("");

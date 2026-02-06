@@ -104,15 +104,8 @@ export const LiveAdminDashboard = () => {
   // Fetch all active shifts
   const fetchActiveShifts = useCallback(async () => {
     try {
-      const response = await fetch("/api/shifts?status=OPEN", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setActiveShifts(data || []);
-      }
+      const data = await api.get("/api/shifts", { status: "OPEN" });
+      setActiveShifts(data || []);
     } catch (error) {
       console.error("Error fetching active shifts:", error);
     }
@@ -122,15 +115,9 @@ export const LiveAdminDashboard = () => {
   const fetchShiftDetails = useCallback(async (shiftId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/shifts/${shiftId}/details`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setShiftDetails(data);
-        setLastUpdated(new Date());
+      const data = await api.get(`/api/shifts/${shiftId}/details`);
+      setShiftDetails(data);
+      setLastUpdated(new Date());
       }
     } catch (error) {
       console.error("Error fetching shift details:", error);

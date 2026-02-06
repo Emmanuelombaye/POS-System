@@ -42,17 +42,11 @@ export const StockAlertsPanel = ({ onRefresh }: StockAlertsProps) => {
   const fetchAlerts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:4000/stock/alerts?branch_id=${currentBranch}&resolved=false`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAlerts(data.alerts || []);
-      }
+      const data = await api.get("/api/stock/alerts", {
+        branch_id: currentBranch,
+        resolved: "false"
+      });
+      setAlerts(data.alerts || []);
     } catch (err) {
       console.error("Failed to fetch alerts:", err);
     } finally {

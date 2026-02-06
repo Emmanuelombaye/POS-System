@@ -55,17 +55,12 @@ export const ClosedShiftsView = () => {
   const fetchClosedShifts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/shift-stock/closed-shifts?branch_id=${currentBranch}&date=${selectedDate}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-        setLastUpdated(new Date().toLocaleTimeString());
-      }
+      const result = await api.get("/api/shift-stock/closed-shifts", {
+        branch_id: currentBranch,
+        date: selectedDate
+      });
+      setData(result);
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch (error) {
       console.error("Failed to fetch closed shifts:", error);
     }

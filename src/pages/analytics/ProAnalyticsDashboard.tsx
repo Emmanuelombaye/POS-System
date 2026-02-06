@@ -111,22 +111,14 @@ export const ProAnalyticsDashboard = () => {
       };
       
       const apiDateRange = dateRangeMap[dateRange] || "week";
-      const url = `http://localhost:4000/api/analytics/pro?dateRange=${apiDateRange}&branch=${selectedBranch}`;
-      
-      console.log("[DASHBOARD] Fetching from:", url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+
+      console.log("[DASHBOARD] Fetching analytics for:", { dateRange: apiDateRange, branch: selectedBranch });
+
+      const data = await api.get("/api/analytics/pro", {
+        dateRange: apiDateRange,
+        branch: selectedBranch
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch analytics: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      
       console.log("[DASHBOARD] Received data:", {
         summary: data.summary,
         salesByDayCount: data.salesByDay?.length,
@@ -134,7 +126,7 @@ export const ProAnalyticsDashboard = () => {
         topProductsCount: data.topProducts?.length,
         hourlyDataCount: data.hourlyData?.length
       });
-      
+
       setAnalyticsData(data);
       setLastRefresh(new Date());
     } catch (error) {
