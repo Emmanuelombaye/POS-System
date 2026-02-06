@@ -17,11 +17,21 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 app.use(cors({
-  origin: [
-    'https://edendrop.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:4000'
-  ],
+  origin: function(origin, callback) {
+    const whitelist = [
+      'http://localhost:5173',
+      'http://localhost:4000'
+    ];
+    
+    // Allow all *.vercel.app domains (production and preview URLs)
+    if (origin && origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else if (!origin || whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
