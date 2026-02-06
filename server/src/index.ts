@@ -16,7 +16,16 @@ import userManagementRouter from "./userManagement";
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://edendrop.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:4000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Mount shift workflow router
