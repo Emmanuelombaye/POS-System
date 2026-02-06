@@ -186,7 +186,7 @@ Creates 5 users and 4 products per branch
 ### Step 2: Login (1 minute)
 ```
 Go to http://localhost:5175
-User: a1, Password: @AdminEdenTop, Role: Admin
+User: a1, Password: @AdminEdenDrop001, Role: Admin
 ```
 
 ### Step 3: Explore System (2 minutes)

@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Building2, Check, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export type BranchId = "branch1" | "branch2" | "branch3";
+export type BranchId = "eden-drop-tamasha" | "eden-drop-reem" | "eden-drop-ukunda";
 
 interface Branch {
   id: BranchId;
@@ -14,23 +14,23 @@ interface Branch {
 
 const BRANCHES: Branch[] = [
   {
-    id: "branch1",
-    name: "Branch 1 - Downtown",
-    location: "Main Street, City Center",
+    id: "eden-drop-tamasha",
+    name: "Edendrop001 Tamasha",
+    location: "Tamasha Location",
     color: "#3B82F6",
     gradient: "from-blue-500 to-blue-600",
   },
   {
-    id: "branch2",
-    name: "Branch 2 - Westside",
-    location: "West Avenue, Mall Complex",
+    id: "eden-drop-reem",
+    name: "Edendrop001 Reem",
+    location: "Reem Location",
     color: "#10B981",
     gradient: "from-emerald-500 to-emerald-600",
   },
   {
-    id: "branch3",
-    name: "Branch 3 - Eastgate",
-    location: "East Road, Shopping District",
+    id: "eden-drop-ukunda",
+    name: "Edendrop001 LungaLunga",
+    location: "LungaLunga Location",
     color: "#F59E0B",
     gradient: "from-amber-500 to-amber-600",
   },

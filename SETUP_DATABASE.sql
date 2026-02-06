@@ -1,5 +1,5 @@
 -- ============================================================================
--- EDEN TOP POS - Database Initialization Script
+-- EDEN DROP 001 POS - Database Initialization Script
 -- ============================================================================
 -- This script sets up all tables and populates with initial data
 -- Copy and paste the entire content into Supabase SQL Editor and run it
@@ -28,7 +28,7 @@ DELETE FROM public.users;
 -- ============================================================================
 -- 3. INSERT SAMPLE USERS
 -- ============================================================================
--- Password for all users: @AdminEdenTop
+-- Password for all users: @AdminEdenDrop001
 -- User: a1 (Admin)
 INSERT INTO public.users (id, name, role) 
 VALUES ('a1', 'Admin Eden', 'admin');
@@ -122,9 +122,9 @@ SELECT id, name, role FROM public.users ORDER BY id;
 -- SETUP COMPLETE
 -- ============================================================================
 -- Login Credentials:
--- User ID: a1  | Password: @AdminEdenTop | Role: Admin
--- User ID: m1  | Password: @AdminEdenTop | Role: Manager
--- User ID: c1  | Password: @AdminEdenTop | Role: Cashier
--- User ID: c2  | Password: @AdminEdenTop | Role: Cashier
--- User ID: c3  | Password: @AdminEdenTop | Role: Cashier
+-- User ID: a1  | Password: @AdminEdenDrop001 | Role: Admin
+-- User ID: m1  | Password: @AdminEdenDrop001 | Role: Manager
+-- User ID: c1  | Password: @AdminEdenDrop001 | Role: Cashier
+-- User ID: c2  | Password: @AdminEdenDrop001 | Role: Cashier
+-- User ID: c3  | Password: @AdminEdenDrop001 | Role: Cashier
 -- ============================================================================

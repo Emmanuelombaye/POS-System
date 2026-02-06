@@ -14,6 +14,7 @@ export const CashierDashboard = () => {
   const {
     products,
     settings,
+    activeShift,
     cashierCart,
     cashierDiscount,
     cashierPaymentMethod,
@@ -75,6 +76,33 @@ export const CashierDashboard = () => {
   const filteredProducts = products
     .filter((p) => p.isActive)
     .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Block POS if shift not opened
+  if (!activeShift) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br from-brand-charcoal via-slate-950 to-black p-8">
+        <Card className="max-w-md bg-slate-900 border-amber-600/30">
+          <CardHeader>
+            <CardTitle className="text-2xl text-amber-500 flex items-center gap-2">
+              <Receipt className="h-6 w-6" />
+              Shift Not Started
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-gray-300">
+              You must open your shift before using the POS system.
+            </p>
+            <p className="text-sm text-gray-400">
+              Go to <strong className="text-white">Shift & Stock</strong> tab and click <strong className="text-white">Open Shift</strong> to begin.
+            </p>
+            <Badge variant="outline" className="border-amber-600 text-amber-500 font-mono">
+              Opening shift loads yesterday's closing stock automatically
+            </Badge>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-80px)] gap-6 p-4 lg:p-8 bg-brand-offwhite max-w-[1920px] mx-auto overflow-hidden">

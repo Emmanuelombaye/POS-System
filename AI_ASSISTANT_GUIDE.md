@@ -3,7 +3,7 @@
 # ============================================================================
 
 ## Overview
-The Admin AI Assistant is an intelligent tool integrated into the Eden Top POS system that provides:
+The Admin AI Assistant is an intelligent tool integrated into the Eden Drop 001 POS system that provides:
 - Real-time stock analysis and low-stock alerts
 - Cashier shift oversight and variance detection
 - Sales insights and trend analysis

@@ -6,32 +6,47 @@ import { TextReportGenerator } from "./TextReportGenerator";
 import { supabase } from "@/utils/supabase";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { api } from "@/utils/api";
 
 /**
  * Main Wholesale Desk page
- * Manages daily wholesale summaries for market/wholesale sales
- * Allows entry, display, and reporting of cash & M-Pesa sales by branch
+ * Real-time tracking of cash & M-Pesa sales by branch
+ * Automatically aggregates from transactions + manual entries
  */
 export const WholesaleDesk = () => {
   const [summaries, setSummaries] = useState<DailySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch summaries on mount and subscribe to changes
+  // Fetch summaries on mount and subscribe to real-time changes
   useEffect(() => {
     fetchSummaries();
 
-    const channel = supabase
+    // Subscribe to wholesale_summaries changes
+    const wholesaleChannel = supabase
       .channel("wholesale-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "wholesale_summaries" }, () => {
         fetchSummaries();
       })
       .subscribe();
 
+    // Subscribe to transactions changes for real-time updates
+    const transactionsChannel = supabase
+      .channel("transactions-changes")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, () => {
+        fetchSummaries();
+      })
+      .subscribe();
+
+    // Auto-refresh every 10 seconds for real-time data
+    const interval = setInterval(() => {
+      fetchSummaries();
+    }, 10000);
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(wholesaleChannel);
+      supabase.removeChannel(transactionsChannel);
+      clearInterval(interval);
     };
   }, []);
 
@@ -39,15 +54,22 @@ export const WholesaleDesk = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/wholesale-summaries`);
-      if (!response.ok) throw new Error("Failed to fetch summaries");
-      const data = await response.json();
+      const today = new Date().toISOString().split("T")[0];
+      
+      // Fetch real-time aggregated summaries (transactions + manual entries)
+      const data = await api.get(`/api/wholesale-summaries/realtime?date=${today}`);
+      
       const mappedData = data.map((s: any) => ({
         id: s.id,
         date: s.date,
         branch: s.branch,
         cashReceived: s.cash_received,
         mpesaReceived: s.mpesa_received,
+        // Additional details for display
+        manualCash: s.manual_cash || 0,
+        manualMpesa: s.manual_mpesa || 0,
+        transactionCash: s.transaction_cash || 0,
+        transactionMpesa: s.transaction_mpesa || 0,
       }));
       setSummaries(mappedData);
     } catch (err) {
@@ -60,26 +82,26 @@ export const WholesaleDesk = () => {
 
   const handleAddSummary = async (summary: DailySummary) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/wholesale-summaries`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: summary.id,
-          date: summary.date,
-          branch: summary.branch,
-          cash_received: summary.cashReceived,
-          mpesa_received: summary.mpesaReceived,
-        }),
+      const savedSummaryRaw = await api.post("/api/wholesale-summaries", {
+        id: summary.id,
+        date: summary.date,
+        branch: summary.branch,
+        cash_received: summary.cashReceived,
+        mpesa_received: summary.mpesaReceived,
       });
-      if (!response.ok) throw new Error("Failed to save summary");
-      const savedSummaryRaw = await response.json();
-      const savedSummary = {
+
+      const savedSummary: DailySummary = {
         id: savedSummaryRaw.id,
         date: savedSummaryRaw.date,
         branch: savedSummaryRaw.branch,
         cashReceived: savedSummaryRaw.cash_received,
         mpesaReceived: savedSummaryRaw.mpesa_received,
+        manualCash: savedSummaryRaw.manual_cash || 0,
+        manualMpesa: savedSummaryRaw.manual_mpesa || 0,
+        transactionCash: savedSummaryRaw.transaction_cash || 0,
+        transactionMpesa: savedSummaryRaw.transaction_mpesa || 0,
       };
+
       setSummaries([savedSummary, ...summaries]);
     } catch (err) {
       setError((err as Error).message);

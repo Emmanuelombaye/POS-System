@@ -1,0 +1,19 @@
+{
+  "version": "2.0.1",
+  "buildDate": "2026-02-06T00:00:00Z",
+  "changelog": "• Auto-update system implemented\n• Enhanced error logging & monitoring\n• Mobile-first UX optimizations\n• PWA offline improvements\n• Performance monitoring dashboard",
+  "features": [
+    "Auto-update without re-install",
+    "Advanced error logging",
+    "Payment failure tracking",
+    "Performance monitoring",
+    "Mobile-optimized cashier UI",
+    "Big buttons (44x44px minimum)",
+    "One-hand navigation",
+    "Offline transaction queue",
+    "Real-time sync"
+  ],
+  "minimumVersion": "2.0.0",
+  "updateRequired": false,
+  "updateOptional": false
+}

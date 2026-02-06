@@ -4,13 +4,18 @@ import { RootLayout } from "@/layouts/RootLayout";
 import { supabase } from "@/utils/supabase";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { ModernCashierDashboard } from "@/pages/cashier/ModernCashierDashboard";
-import { ShiftStock } from "@/pages/cashier/ShiftStock";
+import { CashierShiftWorkflow } from "@/pages/cashier/CashierShiftWorkflow";
 import { ManagerDashboard } from "@/pages/manager/ManagerDashboard";
-import { ModernAdminDashboard } from "@/pages/admin/ModernAdminDashboard";
-import { ShiftReconciliation } from "@/pages/admin/ShiftReconciliation";
-import { WholesaleDesk } from "@/components/wholesale/WholesaleDesk";
+import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { ShiftSummaryDashboard } from "@/pages/admin/ShiftSummaryDashboard";
+import { AdminAnalyticsDashboard } from "@/pages/admin/AdminAnalyticsDashboard";
+import { AnalyticsDashboard } from "@/pages/analytics/AnalyticsDashboard";
+import { ProAnalyticsDashboard } from "@/pages/analytics/ProAnalyticsDashboard";
 import { useAppStore } from "@/store/appStore";
+import { useOfflineStore } from "@/store/offlineStore";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { registerServiceWorker, initInstallPrompt, addNetworkListener } from "@/utils/pwa";
 
 const RequireRole = ({
   role,
@@ -20,6 +25,7 @@ const RequireRole = ({
   children: JSX.Element;
 }) => {
   const user = useAppStore((s) => s.currentUser);
+  const activeShift = useAppStore((s) => s.activeShift);
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) {
     // Basic protection: send them to their own dashboard
@@ -30,6 +36,18 @@ const RequireRole = ({
   return children;
 };
 
+const RequireShift = ({ children }: { children: JSX.Element }) => {
+  const activeShift = useAppStore((s) => s.activeShift);
+  const user = useAppStore((s) => s.currentUser);
+  
+  // Redirect to shift page if cashier has no active shift
+  if (user?.role === "cashier" && !activeShift) {
+    return <Navigate to="/cashier/shift" replace />;
+  }
+  
+  return children;
+};
+
 export const App = () => {
   const initialize = useAppStore((s) => s.initialize);
   const fetchProducts = useAppStore((s) => s.fetchProducts);
@@ -37,6 +55,35 @@ export const App = () => {
   const fetchTransactions = useAppStore((s) => s.fetchTransactions);
   const fetchShifts = useAppStore((s) => s.fetchShifts);
   const fetchPendingAdditions = useAppStore((s) => s.fetchPendingAdditions);
+  const setOnline = useOfflineStore((s) => s.setOnline);
+
+  useEffect(() => {
+    // Register PWA Service Worker (production only)
+    if (import.meta.env.PROD) {
+      registerServiceWorker();
+      // Initialize PWA install prompt
+      initInstallPrompt();
+    } else if ("serviceWorker" in navigator) {
+      // Ensure dev HMR isn't interfered by a cached service worker
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      });
+    }
+
+    // Setup online/offline detection
+    const removeListener = addNetworkListener(
+      () => {
+        console.log('[App] Network: ONLINE');
+        setOnline(true);
+      },
+      () => {
+        console.log('[App] Network: OFFLINE');
+        setOnline(false);
+      }
+    );
+
+    return removeListener;
+  }, [setOnline]);
 
   useEffect(() => {
     // Initial fetch of all data
@@ -99,6 +146,9 @@ export const App = () => {
   return (
     <ThemeProvider defaultTheme="light" storageKey="butchery-pos-theme">
       <div className="fade-in">
+        {/* PWA Offline Indicator & Install Prompt */}
+        <OfflineIndicator />
+        
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<RootLayout />}>
@@ -106,7 +156,9 @@ export const App = () => {
               path="/cashier"
               element={
                 <RequireRole role="cashier">
-                  <ModernCashierDashboard />
+                  <RequireShift>
+                    <ModernCashierDashboard />
+                  </RequireShift>
                 </RequireRole>
               }
             />
@@ -114,7 +166,7 @@ export const App = () => {
               path="/cashier/shift"
               element={
                 <RequireRole role="cashier">
-                  <ShiftStock />
+                  <CashierShiftWorkflow />
                 </RequireRole>
               }
             />
@@ -130,23 +182,39 @@ export const App = () => {
               path="/admin"
               element={
                 <RequireRole role="admin">
-                  <ModernAdminDashboard />
+                  <AdminDashboard />
                 </RequireRole>
               }
             />
             <Route
-              path="/admin/reconciliation"
+              path="/admin/summary"
               element={
                 <RequireRole role="admin">
-                  <ShiftReconciliation />
+                  <ShiftSummaryDashboard />
                 </RequireRole>
               }
             />
             <Route
-              path="/admin/wholesale"
+              path="/admin/analytics"
               element={
                 <RequireRole role="admin">
-                  <WholesaleDesk />
+                  <AdminAnalyticsDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <RequireRole role="admin">
+                  <AnalyticsDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/pro-analytics"
+              element={
+                <RequireRole role="admin">
+                  <ProAnalyticsDashboard />
                 </RequireRole>
               }
             />

@@ -100,7 +100,7 @@ npm run dev
 
 Expected output:
 ```
-Eden Top backend listening on port 4000
+Eden Drop 001 backend listening on port 4000
 ```
 
 ### 4️⃣ Start Frontend (New Terminal)

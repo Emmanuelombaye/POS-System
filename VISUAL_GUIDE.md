@@ -119,7 +119,7 @@ Click on: a1 - Admin Eden
 You'll see a password field:
   [•••••••••••]
 
-Type: @AdminEdenTop
+Type: @AdminEdenDrop001
 (Must be exactly this, including the @ symbol)
 ```
 
@@ -154,7 +154,7 @@ If you see this, you've successfully logged in!
 1. Go to: http://localhost:5175
 2. Select: Manager role
 3. Select: m1 - Manager John
-4. Password: @AdminEdenTop
+4. Password: @AdminEdenDrop001
 5. Click: Sign In
 6. You should see: Manager Dashboard
 ```
@@ -164,7 +164,7 @@ If you see this, you've successfully logged in!
 1. Go to: http://localhost:5175
 2. Select: Cashier role
 3. Select: c1 - Cashier David
-4. Password: @AdminEdenTop
+4. Password: @AdminEdenDrop001
 5. Select Branch: Branch 1 (or any branch)
 6. Click: Sign In
 7. You should see: POS Terminal with product categories
@@ -185,7 +185,7 @@ Solution:
 ### Error: "Invalid password"
 ```
 Check:
-- You typed: @AdminEdenTop
+- You typed: @AdminEdenDrop001
 - With the @ symbol
 - Exact spelling (case-sensitive)
 ```
@@ -234,7 +234,7 @@ Solution:
 1. http://localhost:5175
 2. Click: [Admin] button
 3. Click: a1 dropdown
-4. Type: @AdminEdenTop
+4. Type: @AdminEdenDrop001
 5. Click: [Sign In]
 6. ✅ You're in!
 ```

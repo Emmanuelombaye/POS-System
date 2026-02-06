@@ -253,7 +253,7 @@ For detailed info, see:
 
 ## 🎉 You're All Set!
 
-Your Eden Top POS system now has an intelligent AI assistant that:
+Your Eden Drop 001 POS system now has an intelligent AI assistant that:
 - Analyzes stock in real-time
 - Monitors cashier shifts
 - Reports sales trends

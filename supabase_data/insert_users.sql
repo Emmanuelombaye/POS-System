@@ -1,5 +1,5 @@
 -- Insert users for Eden Top POS
--- All users use the password: @AdminEdenTop
+-- All users use the password: @AdminEdenDrop001
 
 INSERT INTO users (id, name, role, created_at, updated_at) VALUES
 ('a1', 'Owner (Admin)', 'admin', NOW(), NOW()),

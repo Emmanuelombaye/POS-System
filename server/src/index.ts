@@ -6,6 +6,12 @@ import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import OpenAI from "openai";
+import shiftsRouter from "./shifts";
+import shiftSummaryRouter from "./shiftSummary";
+import adminAnalyticsRouter from "./adminAnalytics";
+import proAnalyticsRouter from "./proAnalytics";
+import expensesRouter from "./expenses";
+import userManagementRouter from "./userManagement";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
@@ -13,12 +19,91 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Mount shift workflow router
+app.use("/api/shifts", shiftsRouter);
+// Mount shift summary router
+app.use("/api/shift-summary", shiftSummaryRouter);
+// Mount admin analytics router
+app.use("/api/admin/analytics", adminAnalyticsRouter);
+// Mount pro analytics router
+app.use("/api/analytics", proAnalyticsRouter);
+// Mount expenses router
+app.use("/api/expenses", expensesRouter);
+// Mount user management router
+app.use("/api/admin/users", userManagementRouter);
+
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || "https://glskbegsmdrylrhczpyy.supabase.co";
 const supabaseKey = process.env.SUPABASE_KEY || "sb_publishable_waCCK6KyQPWQlCQHpzVucQ_5ytpKQcQ";
-const JWT_SECRET = process.env.JWT_SECRET || "eden-top-secret-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET || "eden-drop-001-secret-key-2026";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Migration: Ensure shift_stock_entries table exists
+const ensureShiftStockEntriesTable = async () => {
+  try {
+    // Try to query the table to check if it exists
+    const { error: checkError } = await supabase
+      .from("shift_stock_entries")
+      .select("id")
+      .limit(1);
+
+    if (checkError && checkError.code === "PGRST116") {
+      // Table doesn't exist, we need to create it
+      console.log("[MIGRATION] Creating shift_stock_entries table...");
+      
+      // Use Supabase HTTP API to execute raw SQL
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseKey,
+        },
+      });
+
+      // Since direct SQL execution isn't available, we'll use a workaround:
+      // Create a temporary function that can be called via RPC
+      // For now, log that the table is missing
+      if (checkError) {
+        console.warn("[MIGRATION] shift_stock_entries table not found. Creating via fallback...");
+        
+        // Attempt to create the table using individual insert operations
+        // This is a workaround since Supabase JS client doesn't support raw SQL
+        const createTableSQL = `
+          CREATE TABLE IF NOT EXISTS public.shift_stock_entries (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            shift_id TEXT NOT NULL REFERENCES public.shifts(id) ON DELETE CASCADE,
+            cashier_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE SET NULL,
+            branch_id TEXT NOT NULL DEFAULT 'branch1',
+            product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+            shift_date DATE NOT NULL DEFAULT CURRENT_DATE,
+            opening_stock DECIMAL(10, 2) DEFAULT 0,
+            added_stock DECIMAL(10, 2) DEFAULT 0,
+            sold_stock DECIMAL(10, 2) DEFAULT 0,
+            closing_stock DECIMAL(10, 2) DEFAULT 0,
+            variance DECIMAL(10, 2) DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(shift_id, product_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_shift_stock_entries_branch_date
+          ON public.shift_stock_entries(branch_id, shift_date DESC);
+          CREATE INDEX IF NOT EXISTS idx_shift_stock_entries_cashier
+          ON public.shift_stock_entries(cashier_id, shift_date DESC);
+        `;
+        
+        console.log("[MIGRATION] Please run the following SQL in Supabase dashboard:");
+        console.log(createTableSQL);
+        console.warn("[MIGRATION] Shift-based stock tracking requires manual table creation.");
+        console.log("[MIGRATION] Go to: https://supabase.com/dashboard → SQL Editor → Paste the SQL above");
+      }
+    } else if (!checkError) {
+      console.log("[MIGRATION] ✓ shift_stock_entries table exists and is accessible");
+    }
+  } catch (error) {
+    console.error("[MIGRATION] Error checking shift_stock_entries table:", error);
+  }
+};
 
 // Initialize AI client (OpenAI or Ollama)
 const aiProvider = (process.env.AI_PROVIDER || "openai").toLowerCase();
@@ -58,7 +143,7 @@ const authorizeRoles = (...allowedRoles: string[]) => {
 };
 
 app.get("/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", service: "eden-top-backend", database: "supabase" });
+  res.json({ status: "ok", service: "eden-drop-001-backend", database: "supabase" });
 });
 
 // Debug endpoint - check database connection
@@ -86,7 +171,6 @@ setInterval(() => loginAttemptMap.clear(), 3600000);
 // Auth Login endpoint
 app.post("/api/auth/login", async (req: Request, res: Response) => {
   const { userId, password } = req.body;
-  const SYSTEM_PASSWORD = "@AdminEdenTop";
 
   console.log(`[LOGIN] Attempting login for userId: ${userId}`);
 
@@ -109,26 +193,19 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
   }
 
   try {
-    // Password verification (exact match for MVP, no bcrypt needed yet)
-    if (password !== SYSTEM_PASSWORD) {
-      console.log(`[LOGIN] Invalid password for ${userId}`);
-      loginAttemptMap.set(userId, loginAttempts + 1);
-      return res.status(401).json({ error: "Invalid credentials." });
-    }
-
-    console.log(`[LOGIN] Password valid, querying user from database...`);
+    console.log(`[LOGIN] Querying user from database...`);
 
     // Query user from Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.log(`[LOGIN] Database error:`, error);
       loginAttemptMap.set(userId, loginAttempts + 1);
-      return res.status(401).json({ error: `User not found. Database error: ${error.message}` });
+      return res.status(500).json({ error: `Database error: ${error.message}` });
     }
 
     if (!user) {
@@ -138,6 +215,39 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
     }
 
     console.log(`[LOGIN] ✅ User found:`, { id: user.id, name: user.name, role: user.role });
+
+    const passwordHash = (user as any).password_hash as string | undefined;
+    const legacyPassword = (user as any).password as string | undefined;
+
+    console.log(`[LOGIN] 🔐 Password Debug:`, {
+      receivedPassword: password,
+      storedHash: passwordHash ? passwordHash.substring(0, 30) + '...' : 'NO HASH',
+      legacyPassword: legacyPassword ? '***SET***' : 'NOT SET'
+    });
+
+    let passwordValid = false;
+    
+    // Check bcrypt hash first (primary method)
+    if (passwordHash) {
+      try {
+        passwordValid = await bcrypt.compare(password, passwordHash);
+        console.log(`[LOGIN] 🔍 bcrypt.compare result:`, passwordValid);
+      } catch (err) {
+        console.log(`[LOGIN] Error comparing password hash:`, err);
+      }
+    }
+    
+    // Fall back to plain text password comparison (for legacy/empty passwords)
+    if (!passwordValid && legacyPassword) {
+      passwordValid = password === legacyPassword;
+      console.log(`[LOGIN] 🔍 Legacy password match:`, passwordValid);
+    }
+
+    if (!passwordValid) {
+      console.log(`[LOGIN] Invalid password for ${userId}`);
+      loginAttemptMap.set(userId, loginAttempts + 1);
+      return res.status(401).json({ error: "Invalid credentials." });
+    }
 
     // Reset login attempts on success
     loginAttemptMap.delete(userId);
@@ -178,7 +288,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 
 // --- Products Endpoints ---
 
-app.get("/products", authenticateToken, async (_req: Request, res: Response) => {
+app.get("/api/products", authenticateToken, async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("products").select("*");
     if (error) throw error;
@@ -188,7 +298,7 @@ app.get("/products", authenticateToken, async (_req: Request, res: Response) => 
   }
 });
 
-app.post("/products", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+app.post("/api/products", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("products").upsert([req.body]).select();
     if (error) throw error;
@@ -198,7 +308,7 @@ app.post("/products", authenticateToken, authorizeRoles("admin", "manager"), asy
   }
 });
 
-app.patch("/products/:id", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+app.patch("/api/products/:id", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("products")
@@ -213,7 +323,7 @@ app.patch("/products/:id", authenticateToken, authorizeRoles("admin", "manager")
   }
 });
 
-app.delete("/products/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+app.delete("/api/products/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { error } = await supabase.from("products").delete().eq("id", req.params.id);
     if (error) throw error;
@@ -225,7 +335,7 @@ app.delete("/products/:id", authenticateToken, authorizeRoles("admin"), async (r
 
 // --- Users Endpoints ---
 
-app.get("/users", async (_req: Request, res: Response) => {
+app.get("/api/users", async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("users").select("id, name, role");
     if (error) throw error;
@@ -235,7 +345,7 @@ app.get("/users", async (_req: Request, res: Response) => {
   }
 });
 
-app.post("/users", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+app.post("/api/users", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { password, ...userData } = req.body;
     let finalUserData = { ...userData };
@@ -252,7 +362,7 @@ app.post("/users", authenticateToken, authorizeRoles("admin"), async (req: Reque
   }
 });
 
-app.patch("/users/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+app.patch("/api/users/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { password, ...updates } = req.body;
     let finalUpdates = { ...updates };
@@ -274,7 +384,7 @@ app.patch("/users/:id", authenticateToken, authorizeRoles("admin"), async (req: 
   }
 });
 
-app.delete("/users/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+app.delete("/api/users/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { error } = await supabase.from("users").delete().eq("id", req.params.id);
     if (error) throw error;
@@ -286,12 +396,15 @@ app.delete("/users/:id", authenticateToken, authorizeRoles("admin"), async (req:
 
 // --- Transactions Endpoints ---
 
-app.get("/transactions", authenticateToken, async (_req: Request, res: Response) => {
+app.get("/api/transactions", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("transaction_date", { ascending: false });
+    let query = supabase.from("transactions").select("*");
+
+    if (req.query.shift_id) query = query.eq("shift_id", req.query.shift_id);
+    if (req.query.cashier_id) query = query.eq("cashier_id", req.query.cashier_id);
+    if (req.query.payment_method) query = query.eq("payment_method", req.query.payment_method);
+
+    const { data, error } = await query.order("transaction_date", { ascending: false });
 
     if (error) {
       console.error("[TRANSACTIONS] Database error:", error);
@@ -306,11 +419,33 @@ app.get("/transactions", authenticateToken, async (_req: Request, res: Response)
   }
 });
 
-app.post("/transactions", authenticateToken, async (req: Request, res: Response) => {
+app.post("/api/transactions", authenticateToken, async (req: Request, res: Response) => {
   try {
     const transaction = req.body;
-    const { data: tx, error: txError } = await supabase.from("transactions").insert([transaction]).select().single();
-    if (txError) throw txError;
+    
+    // Validate shift is open
+    if (!transaction.shift_id) {
+      return res.status(400).json({ error: "Shift must be opened before making sales" });
+    }
+    
+    const { data: shift } = await supabase
+      .from("shifts")
+      .select("status")
+      .eq("id", transaction.shift_id)
+      .single();
+    
+    if (!shift || shift.status !== "OPEN") {
+      return res.status(400).json({ error: "No active shift found. Please open shift first." });
+    }
+    let txResponse = await supabase.from("transactions").insert([transaction]).select().single();
+
+    if (txResponse.error && String(txResponse.error.message || "").includes("branch_id")) {
+      const { branch_id, ...fallbackTransaction } = transaction;
+      txResponse = await supabase.from("transactions").insert([fallbackTransaction]).select().single();
+    }
+
+    if (txResponse.error) throw txResponse.error;
+    const tx = txResponse.data;
 
     // Log to inventory_ledger for each item
     if (tx && transaction.items) {
@@ -369,11 +504,26 @@ app.post("/transactions", authenticateToken, async (req: Request, res: Response)
 // --- SSR Endpoints (Shifts & Stock Reconciliation) ---
 
 // 1. Shifts
-app.get("/shifts", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/shifts", authenticateToken, async (req: Request, res: Response) => {
   try {
     let query = supabase.from("shifts").select("*");
-    if (req.query.status) query = query.eq("status", req.query.status);
-    if (req.query.cashier_id) query = query.eq("cashier_id", req.query.cashier_id);
+    
+    // Filter by status if provided
+    if (req.query.status) {
+      query = query.eq("status", req.query.status);
+    }
+    
+    // Filter by cashier_id if provided
+    if (req.query.cashier_id) {
+      query = query.eq("cashier_id", req.query.cashier_id);
+    }
+    
+    // IMPORTANT: If looking for "active" shifts, only return TODAY's shifts
+    // This prevents showing stale open shifts from previous days
+    if (req.query.status === "open") {
+      const today = new Date().toISOString().split("T")[0];
+      query = query.eq("shift_date", today);
+    }
 
     const { data, error } = await query.order("created_at", { ascending: false });
     if (error) {
@@ -387,14 +537,21 @@ app.get("/shifts", authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-app.post("/shifts/open", authenticateToken, async (req: Request, res: Response) => {
+app.post("/api/shifts/open", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { cashier_id, branch_id } = req.body;
+    const { cashier_id, branch_id, cashier_name } = req.body;
     // Check if cashier already has an open shift
-    const { data: existing } = await supabase.from("shifts").select("id").eq("cashier_id", cashier_id).eq("status", "OPEN").single();
+    const { data: existing } = await supabase.from("shifts").select("id").eq("cashier_id", cashier_id).eq("status", "open").single();
     if (existing) return res.status(400).json({ error: "Cashier already has an open shift." });
 
-    const { data: shift, error } = await supabase.from("shifts").insert([{ cashier_id, status: 'OPEN' }]).select().single();
+    const { data: shift, error } = await supabase.from("shifts").insert([{ 
+      cashier_id, 
+      cashier_name: cashier_name || "Cashier",
+      branch_id: branch_id || "branch1",
+      shift_date: new Date().toISOString().split('T')[0],
+      opening_time: new Date().toISOString(),
+      status: 'open' 
+    }]).select().single();
     if (error) throw error;
 
     // Log opening snapshot to ledger for each active product
@@ -417,19 +574,45 @@ app.post("/shifts/open", authenticateToken, async (req: Request, res: Response) 
       await supabase.from("shift_stock_snapshots").insert(snapshots);
 
       const shiftDate = new Date().toISOString().split("T")[0];
-      const entries = products.map(p => ({
-        shift_id: shift.id,
-        cashier_id,
-        branch_id: branch_id || "branch1",
-        product_id: p.id,
-        shift_date: shiftDate,
-        opening_stock: Number(p.stock_kg || 0),
-        added_stock: 0,
-        sold_stock: 0,
-        closing_stock: Number(p.stock_kg || 0),
-        variance: 0
-      }));
-      await supabase.from("shift_stock_entries").insert(entries);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split("T")[0];
+
+      // Fetch yesterday's closing stock for each product
+      const { data: yesterdayEntries } = await supabase
+        .from("shift_stock_entries")
+        .select("product_id, closing_stock")
+        .eq("branch_id", branch_id || "branch1")
+        .eq("shift_date", yesterdayDate);
+
+      const yesterdayClosingMap = new Map();
+      if (yesterdayEntries) {
+        yesterdayEntries.forEach(e => yesterdayClosingMap.set(e.product_id, e.closing_stock));
+      }
+
+      const entries = products.map(p => {
+        const openingStock = yesterdayClosingMap.get(p.id) ?? Number(p.stock_kg || 0);
+        return {
+          shift_id: shift.id,
+          cashier_id,
+          branch_id: branch_id || "branch1",
+          product_id: p.id,
+          shift_date: shiftDate,
+          opening_stock: Number(openingStock || 0),
+          added_stock: 0,
+          sold_stock: 0,
+          closing_stock: Number(openingStock || 0),
+          variance: 0
+        };
+      });
+      
+      console.log(`[SHIFT_OPEN] Inserting ${entries.length} stock entries for shift ${shift.id}`);
+      const { error: insertError } = await supabase.from("shift_stock_entries").insert(entries);
+      if (insertError) {
+        console.error(`[SHIFT_OPEN] Error inserting shift_stock_entries:`, insertError);
+      } else {
+        console.log(`[SHIFT_OPEN] ✓ Successfully inserted stock entries`);
+      }
     }
 
     res.status(201).json(shift);
@@ -438,19 +621,35 @@ app.post("/shifts/open", authenticateToken, async (req: Request, res: Response) 
   }
 });
 
-app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Response) => {
+app.post("/api/shifts/:id/close", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { actual_counts } = req.body; // Map item_id -> actual_kg
+    const { actual_counts, closing_cash, closing_mpesa } = req.body; // Map item_id -> actual_kg
     const shiftId = req.params.id;
+
+    console.log(`[SHIFT_CLOSE] Closing shift ${shiftId} with actual_counts:`, actual_counts);
+
+    if (!actual_counts || typeof actual_counts !== "object" || Object.keys(actual_counts).length === 0) {
+      return res.status(400).json({ error: "Actual closing stock is required for all items." });
+    }
+
+    if (closing_cash === undefined || closing_mpesa === undefined) {
+      return res.status(400).json({ error: "Cash and M-Pesa totals are required to close the shift." });
+    }
 
     // 1. Update shift status
     const { data: shift, error: shiftError } = await supabase
       .from("shifts")
-      .update({ status: 'PENDING_REVIEW', closed_at: new Date().toISOString() })
+      .update({
+        status: 'PENDING_REVIEW',
+        closed_at: new Date().toISOString(),
+        closing_cash: closing_cash ?? 0,
+        closing_mpesa: closing_mpesa ?? 0
+      })
       .eq("id", shiftId)
       .select().single();
 
     if (shiftError) throw shiftError;
+    console.log(`[SHIFT_CLOSE] Shift status updated:`, shift);
 
     // 2. Update snapshots with actual counts and calculate expected
     for (const [itemId, actualKg] of Object.entries(actual_counts)) {
@@ -496,6 +695,8 @@ app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Respo
         .eq("shift_id", shiftId)
         .eq("product_id", itemId);
 
+      console.log(`[SHIFT_CLOSE] Updated shift_stock_entries for product ${itemId}: closing=${actualKg}, variance=${varianceFromShift}`);
+
       // Log SHIFT_CLOSE to ledger (the delta to match actual)
       await supabase.from("inventory_ledger").insert([{
         item_id: itemId,
@@ -513,7 +714,7 @@ app.post("/shifts/:id/close", authenticateToken, async (req: Request, res: Respo
 });
 
 // 1. Shift-based stock entries (real-time)
-app.get("/shift-stock", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/shift-stock", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { shift_id } = req.query as { shift_id?: string };
     if (!shift_id) return res.status(400).json({ error: "shift_id is required" });
@@ -522,16 +723,18 @@ app.get("/shift-stock", authenticateToken, async (req: Request, res: Response) =
       .from("shift_stock_entries")
       .select("*, products(name, category, code, low_stock_threshold_kg)")
       .eq("shift_id", shift_id)
-      .order("products(category)", { ascending: true });
+      .order("created_at", { ascending: true });
 
     if (error) throw error;
+    console.log("[SHIFT-STOCK] Returning", data?.length, "entries for shift", shift_id);
     res.json({ entries: data || [] });
   } catch (error) {
+    console.error("[SHIFT-STOCK] Error:", (error as Error).message);
     res.status(500).json({ error: (error as Error).message });
   }
 });
 
-app.get("/shift-stock/summary", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/shift-stock/summary", authenticateToken, async (req: Request, res: Response) => {
   try {
     const branch_id = (req.query.branch_id as string) || "branch1";
     const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
@@ -602,7 +805,173 @@ app.get("/shift-stock/summary", authenticateToken, async (req: Request, res: Res
   }
 });
 
-app.post("/shift/add-stock", authenticateToken, async (req: Request, res: Response) => {
+// Get all closed shifts with variance and stock details (for admin)
+app.get("/api/shift-stock/closed-shifts", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const branch_id = (req.query.branch_id as string) || undefined;
+    const date = (req.query.date as string) || undefined;
+
+    console.log(`[CLOSED_SHIFTS] Fetching with branch_id=${branch_id}, date=${date}`);
+
+    // Query closed shifts with their stock entries
+    let query = supabase
+      .from("shift_stock_entries")
+      .select(`
+        *,
+        products(name, category),
+        shifts(id, opened_at, closed_at, status, cashier_id)
+      `)
+      .not("shifts", "is", null);
+
+    if (branch_id) query = query.eq("branch_id", branch_id);
+    if (date) query = query.eq("shift_date", date);
+
+    const { data, error } = await query.order("shift_date", { ascending: false });
+
+    if (error) throw error;
+
+    console.log(`[CLOSED_SHIFTS] Raw query returned ${data?.length || 0} entries`);
+
+    // Filter for closed shifts only
+    const filteredData = (data || []).filter((entry: any) => 
+      entry.shifts && ["PENDING_REVIEW", "APPROVED"].includes(entry.shifts.status)
+    );
+
+    console.log(`[CLOSED_SHIFTS] After filtering for closed shifts: ${filteredData.length} entries`);
+
+    // Collect all unique cashier IDs
+    const cashierIds = new Set<string>();
+    filteredData.forEach((entry: any) => {
+      if (entry.shifts?.cashier_id) {
+        cashierIds.add(entry.shifts.cashier_id);
+      }
+    });
+
+    // Fetch cashier details
+    const { data: cashiers } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .in("id", Array.from(cashierIds));
+
+    const cashierMap = new Map<string, any>();
+    (cashiers || []).forEach(c => cashierMap.set(c.id, c));
+
+    // Group by shift
+    const shiftMap = new Map<string, any>();
+
+    filteredData.forEach((entry: any) => {
+      const shiftId = entry.shifts.id;
+      if (!shiftMap.has(shiftId)) {
+        const cashier = cashierMap.get(entry.shifts.cashier_id) || {};
+        shiftMap.set(shiftId, {
+          shift_id: shiftId,
+          cashier_id: entry.shifts.cashier_id,
+          cashier_name: cashier.name || "Unknown",
+          cashier_email: cashier.email || "",
+          status: entry.shifts.status,
+          opened_at: entry.shifts.opened_at,
+          closed_at: entry.shifts.closed_at,
+          branch_id: entry.branch_id,
+          shift_date: entry.shift_date,
+          total_opening: 0,
+          total_added: 0,
+          total_sold: 0,
+          total_closing: 0,
+          total_variance: 0,
+          products: []
+        });
+      }
+
+      const shift = shiftMap.get(shiftId);
+      const opening = Number(entry.opening_stock || 0);
+      const added = Number(entry.added_stock || 0);
+      const sold = Number(entry.sold_stock || 0);
+      const closing = Number(entry.closing_stock || 0);
+      const variance = Number(entry.variance || 0);
+
+      shift.total_opening += opening;
+      shift.total_added += added;
+      shift.total_sold += sold;
+      shift.total_closing += closing;
+      shift.total_variance += variance;
+
+      shift.products.push({
+        product_id: entry.product_id,
+        product_name: entry.products?.name || "Unknown",
+        category: entry.products?.category || "",
+        opening_stock: opening,
+        added_stock: added,
+        sold_stock: sold,
+        closing_stock: closing,
+        variance: variance
+      });
+    });
+
+    const closedShifts = Array.from(shiftMap.values());
+
+    console.log(`[CLOSED_SHIFTS] Returning ${closedShifts.length} closed shifts`);
+
+    res.json({
+      closedShifts,
+      branch_id,
+      date: date || new Date().toISOString().split("T")[0]
+    });
+  } catch (error) {
+    console.error("Error fetching closed shifts:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post("/api/shift-stock/by-cashier", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const branch_id = (req.query.branch_id as string) || "branch1";
+    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+
+    // Get all shift stock entries with cashier and product info
+    const { data, error } = await supabase
+      .from("shift_stock_entries")
+      .select("*, products(name, category, code), users!shift_stock_entries_cashier_id_fkey(name, email)")
+      .eq("branch_id", branch_id)
+      .eq("shift_date", date);
+
+    if (error) throw error;
+
+    // Group by cashier
+    const cashierMap = new Map<string, any>();
+
+    (data || []).forEach((entry: any) => {
+      const cashierId = entry.cashier_id;
+      if (!cashierMap.has(cashierId)) {
+        cashierMap.set(cashierId, {
+          cashier_id: cashierId,
+          cashier_name: entry.users?.name || "Unknown",
+          cashier_email: entry.users?.email || "",
+          shift_id: entry.shift_id,
+          products: []
+        });
+      }
+
+      cashierMap.get(cashierId).products.push({
+        product_id: entry.product_id,
+        product_name: entry.products?.name || "Unknown",
+        category: entry.products?.category || "",
+        opening_stock: Number(entry.opening_stock || 0),
+        added_stock: Number(entry.added_stock || 0),
+        sold_stock: Number(entry.sold_stock || 0),
+        closing_stock: Number(entry.closing_stock || 0),
+        variance: Number(entry.variance || 0)
+      });
+    });
+
+    const cashiers = Array.from(cashierMap.values());
+
+    res.json({ cashiers, date, branch_id });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post("/api/shift/add-stock", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { shift_id, product_id, quantity_kg, supplier, notes, batch } = req.body;
     const user = (req as any).user;
@@ -658,7 +1027,7 @@ app.post("/shift/add-stock", authenticateToken, async (req: Request, res: Respon
 });
 
 // 2. Stock Additions
-app.get("/stock-additions", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/stock-additions", authenticateToken, async (req: Request, res: Response) => {
   try {
     let query = supabase.from("stock_additions").select("*");
     if (req.query.status) query = query.eq("status", req.query.status);
@@ -676,7 +1045,7 @@ app.get("/stock-additions", authenticateToken, async (req: Request, res: Respons
   }
 });
 
-app.post("/stock-additions", authenticateToken, async (req: Request, res: Response) => {
+app.post("/api/stock-additions", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { shift_id, item_id, quantity_kg, supplier, notes } = req.body;
     const user = (req as any).user;
@@ -698,7 +1067,7 @@ app.post("/stock-additions", authenticateToken, async (req: Request, res: Respon
   }
 });
 
-app.patch("/stock-additions/:id/approve", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+app.patch("/api/stock-additions/:id/approve", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { status } = req.body; // APPROVED or REJECTED
@@ -742,7 +1111,113 @@ app.patch("/stock-additions/:id/approve", authenticateToken, authorizeRoles("adm
 
 // --- Wholesale Summaries Endpoints ---
 
-app.get("/wholesale-summaries", authenticateToken, async (req: Request, res: Response) => {
+// Get real-time aggregated summaries (from transactions + manual entries)
+app.get("/api/wholesale-summaries/realtime", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    // Get transactions for the date and aggregate by branch and payment method
+    const startDateTime = `${targetDate}T00:00:00`;
+    const endDateTime = `${targetDate}T23:59:59`;
+
+    let txResponse = await supabase
+      .from("transactions")
+      .select("*")
+      .gte("created_at", startDateTime)
+      .lt("created_at", endDateTime);
+
+    if (txResponse.error && txResponse.error.code === "42703") {
+      txResponse = await supabase
+        .from("transactions")
+        .select("*")
+        .gte("transaction_date", startDateTime)
+        .lt("transaction_date", endDateTime);
+    }
+
+    if (txResponse.error) throw txResponse.error;
+    const transactions = txResponse.data;
+
+    // Build shift -> branch map (fallback when transactions lack branch_id)
+    const shiftIds = Array.from(new Set((transactions || []).map((t: any) => t.shift_id).filter(Boolean)));
+    let shiftBranchMap: Record<string, string> = {};
+
+    if (shiftIds.length > 0) {
+      const { data: shiftEntries, error: shiftEntriesError } = await supabase
+        .from("shift_stock_entries")
+        .select("shift_id, branch_id")
+        .in("shift_id", shiftIds);
+
+      if (!shiftEntriesError && shiftEntries) {
+        shiftBranchMap = shiftEntries.reduce((acc: Record<string, string>, entry: any) => {
+          if (!acc[entry.shift_id] && entry.branch_id) {
+            acc[entry.shift_id] = entry.branch_id;
+          }
+          return acc;
+        }, {});
+      }
+    }
+
+    // Aggregate transactions by branch and payment method
+    const branchTotals: Record<string, { cash: number; mpesa: number }> = {
+      "Branch 1": { cash: 0, mpesa: 0 },
+      "Branch 2": { cash: 0, mpesa: 0 },
+      "Branch 3": { cash: 0, mpesa: 0 },
+    };
+
+    transactions?.forEach((tx: any) => {
+      const rawBranch = tx.branch_id ?? shiftBranchMap[tx.shift_id] ?? tx.branch ?? tx.branchId ?? "";
+      const branchStr = String(rawBranch).toLowerCase();
+
+      let branchKey: "Branch 1" | "Branch 2" | "Branch 3" = "Branch 1";
+      if (branchStr.includes("2")) branchKey = "Branch 2";
+      else if (branchStr.includes("3")) branchKey = "Branch 3";
+
+      if (branchTotals[branchKey]) {
+        const amount = Number(tx.total) || 0;
+        if (tx.payment_method === "cash") {
+          branchTotals[branchKey].cash += amount;
+        } else if (tx.payment_method === "mpesa") {
+          branchTotals[branchKey].mpesa += amount;
+        }
+      }
+    });
+
+    // Get manual wholesale entries
+    const { data: manualEntries, error: manualError } = await supabase
+      .from("wholesale_summaries")
+      .select("*")
+      .eq("date", targetDate);
+
+    if (manualError) throw manualError;
+
+    // Merge manual entries with transaction aggregates
+    const result = Object.keys(branchTotals).map((branch) => {
+      const manual = manualEntries?.find((e: any) => e.branch === branch);
+      const txData = branchTotals[branch];
+      
+      return {
+        id: manual?.id || `auto-${branch}-${targetDate}`,
+        date: targetDate,
+        branch,
+        cash_received: (manual?.cash_received || 0) + Math.round(txData.cash),
+        mpesa_received: (manual?.mpesa_received || 0) + Math.round(txData.mpesa),
+        is_aggregated: true,
+        manual_cash: manual?.cash_received || 0,
+        manual_mpesa: manual?.mpesa_received || 0,
+        transaction_cash: Math.round(txData.cash),
+        transaction_mpesa: Math.round(txData.mpesa),
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching real-time summaries:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get("/api/wholesale-summaries", authenticateToken, async (req: Request, res: Response) => {
   try {
     let query = supabase.from("wholesale_summaries").select("*");
     if (req.query.branch) query = query.eq("branch", req.query.branch);
@@ -755,7 +1230,7 @@ app.get("/wholesale-summaries", authenticateToken, async (req: Request, res: Res
   }
 });
 
-app.post("/wholesale-summaries", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+app.post("/api/wholesale-summaries", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("wholesale_summaries").upsert([req.body]).select();
     if (error) throw error;
@@ -765,7 +1240,7 @@ app.post("/wholesale-summaries", authenticateToken, authorizeRoles("admin", "man
   }
 });
 
-app.get("/wholesale-summaries/:id", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/wholesale-summaries/:id", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from("wholesale_summaries")
@@ -781,7 +1256,7 @@ app.get("/wholesale-summaries/:id", authenticateToken, async (req: Request, res:
   }
 });
 
-app.delete("/wholesale-summaries/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
+app.delete("/api/wholesale-summaries/:id", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { error } = await supabase.from("wholesale_summaries").delete().eq("id", req.params.id);
     if (error) throw error;
@@ -794,12 +1269,12 @@ app.delete("/wholesale-summaries/:id", authenticateToken, authorizeRoles("admin"
 // --- STOCK MANAGEMENT ENDPOINTS ---
 
 // 1. Get daily stock entries for a branch
-app.get("/stock/daily", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/stock/daily", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { branch_id, date } = req.query;
     const queryDate = date || new Date().toISOString().split('T')[0];
     
-    let query = supabase.from("stock_entries").select("*, products(name, category, code)");
+    let query = supabase.from("shift_stock_entries").select("*, products(name, category, code)");
     if (branch_id) query = query.eq("branch_id", branch_id);
     query = query.eq("entry_date", queryDate);
 
@@ -816,7 +1291,7 @@ app.get("/stock/daily", authenticateToken, async (req: Request, res: Response) =
 });
 
 // 2. Add stock for a product
-app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
+app.post("/api/stock/add", authenticateToken, authorizeRoles("admin", "manager"), async (req: Request, res: Response) => {
   try {
     const { product_id, branch_id, added_stock_kg, notes } = req.body;
     const user = (req as any).user;
@@ -829,7 +1304,7 @@ app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), as
     
     // Get or create today's stock entry
     const { data: existing, error: getError } = await supabase
-      .from("stock_entries")
+      .from("shift_stock_entries")
       .select("*")
       .eq("product_id", product_id)
       .eq("branch_id", branch_id || "branch1")
@@ -846,7 +1321,7 @@ app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), as
       const newClosing = (existing.opening_stock_kg || 0) + newAdded - (existing.sold_stock_kg || 0);
       
       const { data: updated, error: updateError } = await supabase
-        .from("stock_entries")
+        .from("shift_stock_entries")
         .update({
           added_stock_kg: newAdded,
           closing_stock_kg: newClosing,
@@ -863,7 +1338,7 @@ app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), as
       // Create new entry with yesterday's closing as opening
       const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0];
       const { data: yesterday_entry } = await supabase
-        .from("stock_entries")
+        .from("shift_stock_entries")
         .select("closing_stock_kg, low_stock_threshold_kg")
         .eq("product_id", product_id)
         .eq("branch_id", branch_id || "branch1")
@@ -875,7 +1350,7 @@ app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), as
       const newClosing = openingStock + parseFloat(added_stock_kg);
 
       const { data: created, error: createError } = await supabase
-        .from("stock_entries")
+        .from("shift_stock_entries")
         .insert({
           product_id,
           branch_id: branch_id || "branch1",
@@ -901,13 +1376,13 @@ app.post("/stock/add", authenticateToken, authorizeRoles("admin", "manager"), as
 });
 
 // 3. Update closing stock and sold stock
-app.patch("/stock/closing/:id", authenticateToken, async (req: Request, res: Response) => {
+app.patch("/api/stock/closing/:id", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { closing_stock_kg, sold_stock_kg } = req.body;
     const user = (req as any).user;
 
     const { data: entry, error: getError } = await supabase
-      .from("stock_entries")
+      .from("shift_stock_entries")
       .select("*")
       .eq("id", req.params.id)
       .single();
@@ -920,7 +1395,7 @@ app.patch("/stock/closing/:id", authenticateToken, async (req: Request, res: Res
     const variance = (closing_stock_kg || expectedClosing) - expectedClosing;
 
     const { data: updated, error: updateError } = await supabase
-      .from("stock_entries")
+      .from("shift_stock_entries")
       .update({
         sold_stock_kg: sold_stock_kg || entry.sold_stock_kg,
         closing_stock_kg: closing_stock_kg || expectedClosing,
@@ -953,7 +1428,7 @@ app.patch("/stock/closing/:id", authenticateToken, async (req: Request, res: Res
 });
 
 // 4. Get low-stock alerts
-app.get("/stock/alerts", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/stock/alerts", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { branch_id, resolved } = req.query;
     
@@ -974,13 +1449,13 @@ app.get("/stock/alerts", authenticateToken, async (req: Request, res: Response) 
 });
 
 // 5. Get stock summary for branch
-app.get("/stock/summary", authenticateToken, async (req: Request, res: Response) => {
+app.get("/api/stock/summary", authenticateToken, async (req: Request, res: Response) => {
   try {
     const { branch_id } = req.query;
     const today = new Date().toISOString().split('T')[0];
 
     const { data, error } = await supabase
-      .from("stock_entries")
+      .from("shift_stock_entries")
       .select("*, products(name, category, code)")
       .eq("entry_date", today)
       .eq("branch_id", branch_id || "branch1")
@@ -1201,7 +1676,7 @@ app.post("/api/ai/chat", authenticateToken, authorizeRoles("admin"), async (req:
     const context = await gatherAIContext();
 
     // Prepare system prompt with POS context
-    const systemPrompt = `You are an AI assistant for a multi-butchery POS system called "Eden Top". Your role is to help admins make data-driven decisions.
+    const systemPrompt = `You are an AI assistant for a multi-butchery POS system called "Eden Drop 001". Your role is to help admins make data-driven decisions.
 
 CURRENT SYSTEM DATA:
 - Total Products: ${context.products.length}
@@ -1275,7 +1750,7 @@ Always be helpful, professional, and safety-conscious. Flag any suspicious patte
 
       const ollamaJson = await ollamaRes.json();
       assistantResponse = ollamaJson?.message?.content || assistantResponse;
-    } else if (aiProvider === "openrouter") {
+    } else if (aiProvider === "openrouter" && openRouter) {
       const response = await openRouter.chat.completions.create({
         model: openRouterModel,
         messages: [
@@ -1293,7 +1768,7 @@ Always be helpful, professional, and safety-conscious. Flag any suspicious patte
       });
 
       assistantResponse = response.choices[0]?.message?.content || assistantResponse;
-    } else {
+    } else if (openai) {
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -1350,8 +1825,11 @@ const PORT = process.env.PORT || 4000;
 if (!process.env.VERCEL) {
   app.listen(PORT, async () => {
     // eslint-disable-next-line no-console
-    console.log(`Eden Top backend listening on port ${PORT}`);
+    console.log(`Eden Drop 001 backend listening on port ${PORT}`);
     try {
+      // Run migration to ensure required tables exist
+      await ensureShiftStockEntriesTable();
+      
       const { data, error } = await supabase.from("products").select("id").limit(1);
       if (error) console.error("Supabase connection error:", error.message);
       else console.log("Successfully connected to Supabase database.");

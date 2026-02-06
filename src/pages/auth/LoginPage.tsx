@@ -5,18 +5,37 @@ import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, ShieldCheck, Zap, Lock, User } from "lucide-react";
+import { Check, ShieldCheck, Zap, Lock, User, AlertCircle } from "lucide-react";
 import { BranchSelector, type BranchId } from "@/components/branch/BranchSelector";
 
-const CORRECT_PASSWORD = "@AdminEdenTop";
+// New unique passwords per role
+const CREDENTIALS_BY_ROLE = {
+  admin: "@Admin001Eden",
+  manager: "@Manager001Eden",
+} as const;
+
+// Cashier passwords by branch
+const CASHIER_PASSWORDS_BY_BRANCH = {
+  "eden-drop-tamasha": "@Kenya90!",  // Tamasha - Alice
+  "eden-drop-reem": "@Kenya80!",     // Reem - Bob
+  "eden-drop-ukunda": "@Kenya70!",   // LungaLunga - Carol
+} as const;
+
+// Branch-to-Cashier Exclusive Mappings
+const CASHIER_BRANCH_MAPPING = {
+  "Alice Cashier": "eden-drop-tamasha",      // Edendrop001 Tamasha
+  "Bob Cashier": "eden-drop-reem",           // Edendrop001 Reem
+  "Carol Cashier": "eden-drop-ukunda",       // Edendrop001 LungaLunga
+} as const;
 
 export const LoginPage = () => {
   const users = useAppStore((s) => s.users);
+  const fetchUsers = useAppStore((s) => s.fetchUsers);
   const login = useAppStore((s) => s.login);
   const setBranch = useAppStore((s) => s.setBranch);
   const currentUser = useAppStore((s) => s.currentUser);
 
-  const [selectedBranch, setSelectedBranch] = useState<BranchId>("branch1");
+  const [selectedBranch, setSelectedBranch] = useState<BranchId>("eden-drop-tamasha");
   const [selectedRole, setSelectedRole] = useState<"admin" | "manager" | "cashier" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [password, setPassword] = useState("");
@@ -26,6 +45,18 @@ export const LoginPage = () => {
 
   // DEBUG
   console.log("LoginPage rendered. Users:", users.length, "currentUser:", currentUser);
+
+  // Fetch users on mount (doesn't require token)
+  useEffect(() => {
+    console.log("[LoginPage] Fetching users...");
+    fetchUsers();
+  }, []); // ← Empty dependency array - only run once on mount
+
+  useEffect(() => {
+    if (selectedUserId && !users.some((u) => u.id === selectedUserId)) {
+      setSelectedUserId("");
+    }
+  }, [users, selectedUserId]);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -46,6 +77,30 @@ export const LoginPage = () => {
     ? users.filter(u => u.role === selectedRole)
     : [];
 
+  // DEBUG: Log available cashiers and mappings
+  if (selectedRole === "cashier") {
+    console.log("🔍 Cashier Debug Info:");
+    console.log("   Selected Branch:", selectedBranch);
+    console.log("   All cashiers:", roleUsers.map(u => u.name));
+    console.log("   Mapping:", CASHIER_BRANCH_MAPPING);
+    console.log("   Filtered:", roleUsers
+      .filter(user => {
+        const assignedBranch = CASHIER_BRANCH_MAPPING[user.name as keyof typeof CASHIER_BRANCH_MAPPING];
+        console.log(`   - ${user.name}: assigned=${assignedBranch}, selected=${selectedBranch}, match=${assignedBranch === selectedBranch}`);
+        return assignedBranch === selectedBranch;
+      })
+      .map(u => u.name)
+    );
+  }
+
+  // Filter cashiers based on selected branch
+  const filteredCashiers = selectedRole === "cashier" && selectedBranch
+    ? roleUsers.filter(user => {
+        const assignedBranch = CASHIER_BRANCH_MAPPING[user.name as keyof typeof CASHIER_BRANCH_MAPPING];
+        return assignedBranch === selectedBranch;
+      })
+    : roleUsers;
+
   const handleLogin = async () => {
     // Validation
     if (!selectedRole || !selectedUserId || !password) {
@@ -59,8 +114,28 @@ export const LoginPage = () => {
       return;
     }
 
-    if (password !== CORRECT_PASSWORD) {
-      setError("❌ Invalid password. Password is: @AdminEdenTop");
+    // Verify cashier belongs to selected branch
+    if (selectedRole === "cashier") {
+      const selectedUser = users.find(u => u.id === selectedUserId);
+      const assignedBranch = CASHIER_BRANCH_MAPPING[selectedUser?.name as keyof typeof CASHIER_BRANCH_MAPPING];
+      
+      if (assignedBranch !== selectedBranch) {
+        setError(`❌ This cashier is not assigned to ${selectedBranch}. Integrity check failed.`);
+        setPassword("");
+        return;
+      }
+    }
+
+    // Get the correct password for the selected role and branch
+    let correctPassword: string;
+    if (selectedRole === "cashier") {
+      correctPassword = CASHIER_PASSWORDS_BY_BRANCH[selectedBranch];
+    } else {
+      correctPassword = CREDENTIALS_BY_ROLE[selectedRole];
+    }
+    
+    if (password !== correctPassword) {
+      setError(`❌ Invalid password. Password is: ${correctPassword}`);
       setPassword("");
       return;
     }
@@ -70,7 +145,7 @@ export const LoginPage = () => {
 
     try {
       // Set branch
-      const branchToUse = selectedRole === "cashier" ? selectedBranch : "branch1";
+      const branchToUse = selectedRole === "cashier" ? selectedBranch : "eden-drop-tamasha";
       setBranch(branchToUse);
       
       // Call backend login
@@ -100,11 +175,6 @@ export const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-brand-charcoal via-slate-950 to-black font-sans text-brand-charcoal">
-      {/* DEBUG: Show simple text to verify page is loading */}
-      <div className="absolute top-4 left-4 text-brand-gold text-lg font-bold z-50">
-        ✅ Login Page Loaded ({users.length} users)
-      </div>
-      
       {/* Left: Brand Showcase */}
       <div className="hidden lg:flex w-5/12 relative flex-col justify-between p-12 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-charcoal to-[#000000] z-0" />
@@ -124,8 +194,8 @@ export const LoginPage = () => {
               E
             </div>
             <div>
-              <span className="text-4xl font-display font-black tracking-tight text-white block">EDEN TOP</span>
-              <span className="text-xs font-semibold text-brand-copper tracking-widest uppercase">Premium Investment Butcheries</span>
+              <span className="text-4xl font-display font-black tracking-tight text-white block">EDEN DROP 001</span>
+              <span className="text-xs font-semibold text-brand-copper tracking-widest uppercase">Premium Butchery</span>
             </div>
           </motion.div>
 
@@ -140,7 +210,7 @@ export const LoginPage = () => {
               Management
             </h1>
             <p className="text-lg text-gray-200 max-w-sm leading-relaxed font-light">
-              The professional POS system trusted by EDEN TOP investment butcheries. Fast, secure, and built for excellence in meat business operations.
+              The professional POS system trusted by EDEN DROP 001. Fast, secure, and built for excellence in meat business operations.
             </p>
           </motion.div>
         </div>
@@ -189,7 +259,7 @@ export const LoginPage = () => {
           transition={{ duration: 1, delay: 0.6 }}
           className="relative z-10 text-xs text-gray-500 font-semibold"
         >
-          © 2026 Eden Top Systems • v2.0 • Multi-Branch Edition
+          © 2026 Eden Drop Systems • v2.0 • Multi-Branch Edition
         </motion.div>
       </div>
 
@@ -249,17 +319,19 @@ export const LoginPage = () => {
           </div>
 
           {/* User Selection */}
-          {selectedRole && roleUsers.length > 0 && (
+          {selectedRole && filteredCashiers.length > 0 && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-6"
             >
-              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-3 block">Select Staff Member</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-3 block">
+                {selectedRole === "cashier" ? "Select Assigned Cashier" : "Select Staff Member"}
+              </label>
               <Card className="border-gray-700 bg-gray-800/50 shadow-xl overflow-hidden">
                 <CardContent className="p-3">
                   <div className="space-y-2">
-                    {roleUsers.map((user) => (
+                    {filteredCashiers.map((user) => (
                       <motion.button
                         key={user.id}
                         whileHover={{ x: 4 }}
@@ -293,6 +365,22 @@ export const LoginPage = () => {
                   </div>
                 </CardContent>
               </Card>
+            </motion.div>
+          )}
+
+          {/* No Cashiers For Selected Branch */}
+          {selectedRole === "cashier" && selectedBranch && filteredCashiers.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-lg bg-amber-500/20 border border-amber-500/50"
+            >
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="text-amber-300 text-sm font-medium">
+                  No cashiers assigned to this branch. Please select a different branch.
+                </div>
+              </div>
             </motion.div>
           )}
 

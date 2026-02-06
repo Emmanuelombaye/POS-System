@@ -1,7 +1,7 @@
 import { Outlet, Navigate, useLocation, Link } from "react-router-dom";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
-import { Moon, SunMedium, LogOut, Store, Package, ClipboardList } from "lucide-react";
+import { LogOut, Store, Package, FileText, BarChart3, ShoppingCart, Receipt } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export const RootLayout = () => {
@@ -23,12 +23,16 @@ export const RootLayout = () => {
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-gray-200 bg-brand-charcoal px-6 py-4 shadow-md sm:px-8">
         <div className="flex items-center gap-4">
           {/* Brand Logo */}
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-burgundy to-red-900 shadow-lg text-white font-bold text-xl shadow-red-900/20">
-            <span>E</span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white shadow-lg overflow-hidden">
+            <img 
+              src="/logo.png" 
+              alt="Eden Drop Butchery" 
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <div className="text-lg font-bold tracking-tight text-white leading-none">
-              EDEN TOP
+              EDEN DROP 001
             </div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-brand-gold mt-1">
               Premium Butchery
@@ -50,24 +54,24 @@ export const RootLayout = () => {
               DASHBOARD
             </Link>
             <Link
-              to="/admin/wholesale"
-              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/wholesale"
+              to="/admin/analytics"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/analytics"
                 ? "text-brand-gold"
                 : "text-gray-400 hover:text-white"
                 }`}
             >
-              <Package className="h-4 w-4" />
-              WHOLESALE
+              <BarChart3 className="h-4 w-4" />
+              ANALYTICS
             </Link>
             <Link
-              to="/admin/reconciliation"
-              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/reconciliation"
+              to="/admin/summary"
+              className={`text-sm font-black tracking-widest transition-colors flex items-center gap-2 ${location.pathname === "/admin/summary"
                 ? "text-brand-gold"
                 : "text-gray-400 hover:text-white"
                 }`}
             >
-              <ClipboardList className="h-4 w-4" />
-              RECONCILIATION
+              <FileText className="h-4 w-4" />
+              SUMMARY
             </Link>
           </nav>
         )}
@@ -131,9 +135,147 @@ export const RootLayout = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto p-0 sm:p-0">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto p-0 sm:p-0 pb-24 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      {user && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur md:hidden">
+          <div className="mx-auto grid max-w-[768px] grid-cols-5 px-2 py-2">
+            {user.role === "cashier" ? (
+              <>
+                <Link
+                  to="/cashier"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/cashier" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Store className="h-5 w-5" />
+                  Home
+                </Link>
+                <Link
+                  to="/cashier"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/cashier" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  Cart
+                </Link>
+                <Link
+                  to="/cashier"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/cashier" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Receipt className="h-5 w-5" />
+                  Sales
+                </Link>
+                <Link
+                  to="/cashier/shift"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/cashier/shift" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Package className="h-5 w-5" />
+                  Inventory
+                </Link>
+                <Link
+                  to="/cashier/shift"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/cashier/shift" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                  Reports
+                </Link>
+              </>
+            ) : user.role === "admin" ? (
+              <>
+                <Link
+                  to="/admin"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/admin" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Store className="h-5 w-5" />
+                  Home
+                </Link>
+                <Link
+                  to="/admin"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/admin" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Receipt className="h-5 w-5" />
+                  Transactions
+                </Link>
+                <Link
+                  to="/admin"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/admin" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Package className="h-5 w-5" />
+                  Inventory
+                </Link>
+                <Link
+                  to="/admin/analytics"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/admin/analytics" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Reports
+                </Link>
+                <Link
+                  to="/admin/summary"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/admin/summary" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                  Summary
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/manager"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/manager" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <Store className="h-5 w-5" />
+                  Home
+                </Link>
+                <Link
+                  to="/manager"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider ${
+                    location.pathname === "/manager" ? "text-brand-burgundy" : "text-gray-500"
+                  }`}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Reports
+                </Link>
+                <div className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-300">
+                  <Receipt className="h-5 w-5" />
+                  Sales
+                </div>
+                <div className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-300">
+                  <Package className="h-5 w-5" />
+                  Inventory
+                </div>
+                <div className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-300">
+                  <FileText className="h-5 w-5" />
+                  Summary
+                </div>
+              </>
+            )}
+          </div>
+        </nav>
+      )}
     </div>
   );
 };

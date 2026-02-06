@@ -54,7 +54,7 @@ npm run dev
 
 Expected output:
 ```
-Eden Top backend listening on port 4000
+Eden Drop 001 backend listening on port 4000
 ```
 
 ---
@@ -81,7 +81,7 @@ VITE v... ready in 123 ms
 3. Fill in:
    - **Role**: Admin, Manager, or Cashier
    - **User ID**: a1 (admin), m1 (manager), or c1/c2/c3 (cashier)
-   - **Password**: @AdminEdenTop
+   - **Password**: @AdminEdenDrop001
    - **Branch** (Cashiers only): Select any branch (branch1, branch2, branch3)
 4. Click **Sign In**
 
@@ -101,7 +101,7 @@ VITE v... ready in 123 ms
 2. Check backend console for error messages
 3. Verify users exist in Supabase (Step 2)
 4. Try different user ID
-5. Verify password is exactly: `@AdminEdenTop`
+5. Verify password is exactly: `@AdminEdenDrop001`
 
 ---
 
@@ -111,7 +111,7 @@ VITE v... ready in 123 ms
 **Solution**: Users table is empty. Complete STEP 1 (populate database)
 
 ### Issue: "Invalid password" error  
-**Solution**: Password must be EXACTLY `@AdminEdenTop` (case-sensitive)
+**Solution**: Password must be EXACTLY `@AdminEdenDrop001` (case-sensitive)
 
 ### Issue: Cannot reach backend (network error)
 **Solution**: 
@@ -145,11 +145,11 @@ VITE v... ready in 123 ms
 
 | User ID | Name | Role | Branch | Password |
 |---------|------|------|--------|----------|
-| a1 | Admin Eden | Admin | N/A | @AdminEdenTop |
-| m1 | Manager John | Manager | N/A | @AdminEdenTop |
-| c1 | Cashier David | Cashier | Any | @AdminEdenTop |
-| c2 | Cashier Mary | Cashier | Any | @AdminEdenTop |
-| c3 | Cashier Peter | Cashier | Any | @AdminEdenTop |
+| a1 | Admin Eden | Admin | N/A | @AdminEdenDrop001 |
+| m1 | Manager John | Manager | N/A | @AdminEdenDrop001 |
+| c1 | Cashier David | Cashier | Any | @AdminEdenDrop001 |
+| c2 | Cashier Mary | Cashier | Any | @AdminEdenDrop001 |
+| c3 | Cashier Peter | Cashier | Any | @AdminEdenDrop001 |
 
 ---
 
@@ -164,7 +164,7 @@ Test login manually:
 ```bash
 curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"userId":"a1","password":"@AdminEdenTop"}'
+  -d '{"userId":"a1","password":"@AdminEdenDrop001"}'
 ```
 
 Check users in database:

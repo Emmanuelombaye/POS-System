@@ -2,6 +2,10 @@
 -- EDEN TOP POS - Complete Database Setup
 -- ========================================
 
+-- Enable UUID extension (if not already enabled)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Drop existing tables (if any) to start fresh
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS stock_additions CASCADE;
@@ -24,10 +28,10 @@ CREATE TABLE users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert users with password: @AdminEdenTop
+-- Insert users with password: @AdminEdenDrop001
 -- Password hash generated using bcryptjs
 -- Hash: $2a$10$YIjlrVxR8.Z8K8Z5Z5Z5Z (for testing)
--- In production, generate with: bcryptjs.hashSync('@AdminEdenTop', 10)
+-- In production, generate with: bcryptjs.hashSync('@AdminEdenDrop001', 10)
 
 INSERT INTO users (id, name, role, password_hash) VALUES
 ('a1', 'Owner (Admin)', 'admin', '$2a$10$YIjlrVxR8.Z8K8Z5Z5Z5Z'),
@@ -223,5 +227,5 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 -- ========================================
 -- SETUP COMPLETE
 -- ========================================
--- Users can now login with: @AdminEdenTop
+-- Users can now login with: @AdminEdenDrop001
 -- All tables are ready for the POS system

@@ -29,7 +29,7 @@ A complete stock management module for EDENTOP Investment Butcheries POS system 
 ## 🚀 How to Use
 
 ### Access Stock Management
-1. **Login** as admin (a1 / @AdminEdenTop)
+1. **Login** as admin (a1 / @AdminEdenDrop001)
 2. **Navigate** to `/stock` or find the link in admin menu
 3. **See** the dashboard with summary cards and daily table
 

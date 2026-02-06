@@ -1,6 +1,6 @@
 # ✅ SYSTEM VERIFICATION CHECKLIST
 
-Use this checklist to verify your Eden Top POS system is ready to use.
+Use this checklist to verify your Eden Drop 001 POS system is ready to use.
 
 ---
 
@@ -9,7 +9,7 @@ Use this checklist to verify your Eden Top POS system is ready to use.
 - [ ] **Backend is running**
   - Open terminal in `server/` folder
   - Run: `npm run dev`
-  - Should see: "Eden Top backend listening on port 4000"
+  - Should see: "Eden Drop 001 backend listening on port 4000"
   - Should see: "Successfully connected to Supabase database"
 
 - [ ] **Backend is accessible**
@@ -91,7 +91,7 @@ Use this checklist to verify your Eden Top POS system is ready to use.
   - Fill in:
     - Role: Admin
     - User ID: a1
-    - Password: @AdminEdenTop
+    - Password: @AdminEdenDrop001
   - Click "Sign In"
   - Expected: Redirect to Admin Dashboard
   - Expected: URL changes to http://localhost:5175/admin
@@ -101,7 +101,7 @@ Use this checklist to verify your Eden Top POS system is ready to use.
   - Fill in:
     - Role: Manager
     - User ID: m1
-    - Password: @AdminEdenTop
+    - Password: @AdminEdenDrop001
   - Click "Sign In"
   - Expected: Redirect to Manager Dashboard
   - Expected: URL changes to http://localhost:5175/manager
@@ -111,7 +111,7 @@ Use this checklist to verify your Eden Top POS system is ready to use.
   - Fill in:
     - Role: Cashier
     - User ID: c1
-    - Password: @AdminEdenTop
+    - Password: @AdminEdenDrop001
     - Branch: Branch 1 (required for cashiers)
   - Click "Sign In"
   - Expected: Redirect to Cashier Dashboard (POS Terminal)
@@ -311,7 +311,7 @@ Authorization:     [✅] Configured ✅ Role-based ✅ Working
 
 ## Final Verification
 
-When all checkboxes above are checked ✅, your Eden Top POS system is:
+When all checkboxes above are checked ✅, your Eden Drop 001 POS system is:
 
 - ✅ **Fully functional**
 - ✅ **Secure**

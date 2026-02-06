@@ -2,7 +2,7 @@
 
 ## ✅ What Was Built
 
-A fully-functional, admin-only AI chat assistant integrated into the Eden Top POS system that provides real-time insights, stock analysis, shift oversight, and sales reporting.
+A fully-functional, admin-only AI chat assistant integrated into the Eden Drop 001 POS system that provides real-time insights, stock analysis, shift oversight, and sales reporting.
 
 ---
 

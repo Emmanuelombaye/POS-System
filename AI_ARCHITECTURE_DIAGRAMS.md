@@ -459,7 +459,7 @@ PRODUCTION ENVIRONMENT
 
 ┌─────────────────────────────────────────┐
 │  VERCEL / NETLIFY (Frontend)            │
-│  URL: app.edentop.com                   │
+│  URL: app.edendrop001.com                   │
 │  ├─ React + Vite                        │
 │  ├─ AdminAIAssistant component          │
 │  └─ Authentication via JWT              │
@@ -469,7 +469,7 @@ PRODUCTION ENVIRONMENT
                  ▼
 ┌─────────────────────────────────────────┐
 │  HEROKU / RAILWAY (Backend)             │
-│  URL: api.edentop.com                   │
+│  URL: api.edendrop001.com                   │
 │  ├─ Node.js + Express                   │
 │  ├─ /api/ai/chat endpoint               │
 │  ├─ JWT authentication                  │

@@ -1,4 +1,4 @@
-# 📊 EDEN TOP POS - System Architecture & Login Flow
+# 📊 EDEN DROP 001 POS - System Architecture & Login Flow
 
 ## System Architecture Diagram
 
@@ -41,7 +41,7 @@ User Opens Browser
     │                                  │
     │  1. Select Role (Admin/Manager)  │
     │  2. Select User (a1, m1, c1...)  │
-    │  3. Enter Password (@AdminEdenTop)
+    │  3. Enter Password (@AdminEdenDrop001)
     │  4. Select Branch (Cashier only) │
     │                                  │
     │     [Sign In Button]             │
@@ -242,7 +242,7 @@ User Opens Browser
 │                                                      │
 │  Layer 1: INPUT VALIDATION                          │
 │  ├─ Type checking (string, not empty)              │
-│  ├─ Password exact match (@AdminEdenTop)           │
+│  ├─ Password exact match (@AdminEdenDrop001)           │
 │  └─ User ID format validation                      │
 │                                                      │
 │  Layer 2: RATE LIMITING                             │

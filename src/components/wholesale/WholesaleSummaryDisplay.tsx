@@ -89,15 +89,31 @@ export const WholesaleSummaryDisplay = ({
                         key={summary.id}
                         className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-brand-burgundy/20 hover:bg-white transition-colors"
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex flex-col gap-2">
                           <span className="font-semibold text-brand-charcoal">
                             {formattedDate}
                           </span>
-                          <div className="flex items-center gap-4">
-                            <span>M-Pesa: <span className="font-bold text-brand-charcoal">{summary.mpesaReceived.toLocaleString()}</span></span>
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className="font-bold text-brand-burgundy">Total M-Pesa: KES {summary.mpesaReceived.toLocaleString()}</span>
                             <span className="w-px h-3 bg-gray-300 hidden sm:block"></span>
-                            <span>Cash: <span className="font-bold text-brand-charcoal">{summary.cashReceived.toLocaleString()}</span></span>
+                            <span className="font-bold text-brand-burgundy">Total Cash: KES {summary.cashReceived.toLocaleString()}</span>
                           </div>
+                          {(summary.transactionCash > 0 || summary.transactionMpesa > 0 || summary.manualCash > 0 || summary.manualMpesa > 0) && (
+                            <div className="text-[10px] text-gray-400 flex items-center gap-4 flex-wrap mt-1 pl-2 border-l-2 border-brand-gold/30">
+                              {summary.transactionCash > 0 && (
+                                <span>From Sales (Cash): {summary.transactionCash.toLocaleString()}</span>
+                              )}
+                              {summary.transactionMpesa > 0 && (
+                                <span>From Sales (M-Pesa): {summary.transactionMpesa.toLocaleString()}</span>
+                              )}
+                              {summary.manualCash > 0 && (
+                                <span>Manual Entry (Cash): {summary.manualCash.toLocaleString()}</span>
+                              )}
+                              {summary.manualMpesa > 0 && (
+                                <span>Manual Entry (M-Pesa): {summary.manualMpesa.toLocaleString()}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

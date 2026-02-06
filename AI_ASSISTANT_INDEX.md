@@ -1,6 +1,6 @@
 # 🤖 Admin AI Assistant - Complete Documentation Index
 
-Welcome! Your Eden Top POS system now has an intelligent AI assistant. This index helps you navigate the documentation.
+Welcome! Your Eden Drop 001 POS system now has an intelligent AI assistant. This index helps you navigate the documentation.
 
 ---
 
@@ -341,7 +341,7 @@ Welcome! Your Eden Top POS system now has an intelligent AI assistant. This inde
 
 ## 🙏 Thank You
 
-The AI Assistant is now part of your Eden Top POS system. Enjoy the benefits of intelligent, data-driven insights!
+The AI Assistant is now part of your Eden Drop 001 POS system. Enjoy the benefits of intelligent, data-driven insights!
 
 **Happy exploring!** 🚀
 

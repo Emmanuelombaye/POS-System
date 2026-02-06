@@ -1,4 +1,4 @@
-# 🎯 EDEN TOP POS - MASTER SETUP GUIDE
+# 🎯 EDEN DROP 001 POS - MASTER SETUP GUIDE
 
 **Status:** ✅ **READY TO LOGIN** (Just need to run one SQL script!)
 
@@ -47,7 +47,7 @@ Open browser: http://localhost:5175
 ```
 Role:     Admin
 User ID:  a1
-Password: @AdminEdenTop
+Password: @AdminEdenDrop001
 
 Click: Sign In
 ```
@@ -74,7 +74,7 @@ Use these files based on what you need:
 
 ## 🔐 Login Credentials
 
-All users use the **same password**: `@AdminEdenTop`
+All users use the **same password**: `@AdminEdenDrop001`
 
 ```
 ┌─────┬──────────────────┬──────────┬────────────────────────┐
@@ -252,7 +252,7 @@ Fields: id, user_id, action, description, timestamp
 |---------|----------|
 | **"Can't find SETUP_DATABASE.sql"** | It's in the root folder. Open it and copy all content. |
 | **"User not found" error** | SETUP_DATABASE.sql wasn't run. Do it now. |
-| **"Invalid password"** | Password is `@AdminEdenTop` with @ symbol, case-sensitive. |
+| **"Invalid password"** | Password is `@AdminEdenDrop001` with @ symbol, case-sensitive. |
 | **"Can't connect to backend"** | Verify backend is running: `npm run dev` in server/ folder. |
 | **"Too many attempts"** | Wait 5-10 minutes or restart backend. |
 | **"Blank page after login"** | Hard refresh: Ctrl+Shift+R. Check console for errors (F12). |
@@ -294,7 +294,7 @@ Your data is automatically backed up:
    - Name
    - Role (Admin, Manager, Cashier)
 6. Click "Create"
-7. New user can login with password: @AdminEdenTop
+7. New user can login with password: @AdminEdenDrop001
 
 ---
 
@@ -361,7 +361,7 @@ Before you start using the system:
 
 **Then:**
 1. Go to http://localhost:5175
-2. Login with: a1 / @AdminEdenTop / Admin role
+2. Login with: a1 / @AdminEdenDrop001 / Admin role
 3. You should see Admin Dashboard!
 
 ---
@@ -389,7 +389,7 @@ If something doesn't work:
 
 ## 🎉 You're Almost There!
 
-Your Eden Top POS system is 99% ready. You just need to:
+Your Eden Drop 001 POS system is 99% ready. You just need to:
 
 1. ✅ Run one SQL script (SETUP_DATABASE.sql)
 2. ✅ Login with credentials provided
@@ -401,7 +401,7 @@ Your Eden Top POS system is 99% ready. You just need to:
 
 ## 📝 Remember
 
-- **Password:** `@AdminEdenTop` (exact match, case-sensitive)
+- **Password:** `@AdminEdenDrop001` (exact match, case-sensitive)
 - **Default admin ID:** `a1`
 - **Backend URL:** `http://localhost:4000`
 - **Frontend URL:** `http://localhost:5175`

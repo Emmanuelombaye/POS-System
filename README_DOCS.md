@@ -1,4 +1,4 @@
-# 📚 EDEN TOP POS - DOCUMENTATION INDEX
+# 📚 EDEN DROP 001 POS - DOCUMENTATION INDEX
 
 ## 🚀 Quick Navigation
 
@@ -121,16 +121,16 @@
 ```
 1. Run: SETUP_DATABASE.sql (2 minutes)
 2. Go to: http://localhost:5175
-3. Login: a1 / @AdminEdenTop / Admin
+3. Login: a1 / @AdminEdenDrop001 / Admin
 ```
 
 ### Default Credentials
 ```
-User ID: a1  | Role: Admin    | Password: @AdminEdenTop
-User ID: m1  | Role: Manager  | Password: @AdminEdenTop
-User ID: c1  | Role: Cashier  | Password: @AdminEdenTop
-User ID: c2  | Role: Cashier  | Password: @AdminEdenTop
-User ID: c3  | Role: Cashier  | Password: @AdminEdenTop
+User ID: a1  | Role: Admin    | Password: @AdminEdenDrop001
+User ID: m1  | Role: Manager  | Password: @AdminEdenDrop001
+User ID: c1  | Role: Cashier  | Password: @AdminEdenDrop001
+User ID: c2  | Role: Cashier  | Password: @AdminEdenDrop001
+User ID: c3  | Role: Cashier  | Password: @AdminEdenDrop001
 ```
 
 ### URLs
@@ -207,7 +207,7 @@ Make sure you have:
 
 1. **2 min:** Run SETUP_DATABASE.sql in Supabase
 2. **1 min:** Open http://localhost:5175
-3. **1 min:** Login with a1 / @AdminEdenTop
+3. **1 min:** Login with a1 / @AdminEdenDrop001
 4. **1 min:** You're in! See Admin Dashboard
 
 ---
@@ -246,7 +246,7 @@ After setup, you have:
 
 1. **Read:** START_HERE.md (this guides you through everything)
 2. **Do:** SETUP_DATABASE.sql (copy-paste in Supabase)
-3. **Login:** http://localhost:5175 (a1 / @AdminEdenTop)
+3. **Login:** http://localhost:5175 (a1 / @AdminEdenDrop001)
 4. **Use:** Admin Dashboard, Cashier POS, Manager panel
 
 ---

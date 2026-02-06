@@ -97,11 +97,11 @@ SELECT code, name, category FROM public.products ORDER BY category, name;
 -- SETUP COMPLETE ✅
 -- ============================================================================
 -- Login Credentials:
--- User ID: a1  | Password: @AdminEdenTop | Role: Admin
--- User ID: m1  | Password: @AdminEdenTop | Role: Manager
--- User ID: c1  | Password: @AdminEdenTop | Role: Cashier
--- User ID: c2  | Password: @AdminEdenTop | Role: Cashier
--- User ID: c3  | Password: @AdminEdenTop | Role: Cashier
+-- User ID: a1  | Password: @AdminEdenDrop001 | Role: Admin
+-- User ID: m1  | Password: @AdminEdenDrop001 | Role: Manager
+-- User ID: c1  | Password: @AdminEdenDrop001 | Role: Cashier
+-- User ID: c2  | Password: @AdminEdenDrop001 | Role: Cashier
+-- User ID: c3  | Password: @AdminEdenDrop001 | Role: Cashier
 --
 -- Products: 12 items across 4 categories (Beef, Goat, Offal, Processed)
 -- ============================================================================

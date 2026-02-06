@@ -4,7 +4,7 @@ import { supabase } from "@/utils/supabase";
 import { api } from "@/utils/api";
 
 export type Role = "cashier" | "manager" | "admin";
-export type BranchId = "branch1" | "branch2" | "branch3";
+export type BranchId = "eden-drop-tamasha" | "eden-drop-reem" | "eden-drop-ukunda";
 
 export type ProductId = string;
 export type UserId = string;
@@ -24,6 +24,7 @@ export interface User {
   id: UserId;
   name: string;
   role: Role;
+  branch_id?: BranchId;
 }
 
 export type PaymentMethod = "cash" | "mpesa";
@@ -77,6 +78,8 @@ export interface Shift {
   closedAt?: string;
   status: "OPEN" | "PENDING_REVIEW" | "APPROVED";
   cashierName?: string;
+  closingCash?: number;
+  closingMpesa?: number;
 }
 
 export interface StockAddition {
@@ -148,8 +151,8 @@ export interface AppState {
   updateSettings: (settings: Partial<BusinessSettings>, actorId: UserId | "system") => void;
 
   // SSR actions
-  openShift: (cashierId: UserId) => Promise<void>;
-  closeShift: (shiftId: string, actualCounts: Record<ProductId, number>) => Promise<void>;
+  openShift: (cashierId: UserId, branchId: BranchId) => Promise<void>;
+  closeShift: (shiftId: string, actualCounts: Record<ProductId, number>, payments: { cash: number; mpesa: number }) => Promise<void>;
   addStockAddition: (addition: Omit<StockAddition, "id" | "status" | "createdBy" | "createdAt">) => Promise<void>;
   approveStockAddition: (additionId: string, status: "APPROVED" | "REJECTED") => Promise<void>;
   fetchShifts: (filters?: { status?: string; cashier_id?: string }) => Promise<void>;
@@ -217,7 +220,7 @@ const initialUsers: User[] = [
 
 const initialSettings: BusinessSettings = {
   currency: "KES",
-  receiptHeader: "EDEN TOP\nQuality • Fresh • Premium",
+  receiptHeader: "EDEN DROP 001\nQuality • Fresh • Premium",
   taxEnabled: false,
   taxRatePercent: 8,
   theme: "dark",
@@ -252,6 +255,7 @@ export const useAppStore = create<AppState>()(
         try {
           const res = await api.post("/api/auth/login", { userId, password });
           if (res.token && res.user) {
+            localStorage.setItem("token", res.token);
             set({
               currentUser: res.user,
               token: res.token
@@ -267,6 +271,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
+        localStorage.removeItem("token");
         set({
           currentUser: undefined,
           token: undefined,
@@ -350,10 +355,11 @@ export const useAppStore = create<AppState>()(
         };
 
         // Sync with API
-        api.post("/transactions", {
+        api.post("/api/transactions", {
           id: tx.id,
           cashier_id: tx.cashierId,
           shift_id: get().activeShift?.id, // Link to active shift if exists
+          branch_id: get().currentBranch,
           created_at: tx.createdAt,
           items: tx.items,
           discount: tx.discount,
@@ -398,15 +404,15 @@ export const useAppStore = create<AppState>()(
 
       addProduct: async (product, actorId) => {
         try {
-          await api.post("/products", {
+          await api.post("/api/products", {
             id: product.id,
             name: product.name,
             code: product.code,
             category: product.category,
-            price_per_kg: product.pricePerKg,
-            stock_kg: product.stockKg,
+            unit_price: product.pricePerKg,
+            weight_kg: product.stockKg,
             low_stock_threshold_kg: product.lowStockThresholdKg,
-            is_active: product.isActive,
+            status: product.isActive ? 'active' : 'inactive',
           });
           const { fetchProducts } = get();
           await fetchProducts();
@@ -422,16 +428,18 @@ export const useAppStore = create<AppState>()(
           if (updates.name !== undefined) apiUpdates.name = updates.name;
           if (updates.code !== undefined) apiUpdates.code = updates.code;
           if (updates.category !== undefined) apiUpdates.category = updates.category;
-          if (updates.pricePerKg !== undefined) apiUpdates.price_per_kg = updates.pricePerKg;
-          if (updates.stockKg !== undefined) apiUpdates.stock_kg = updates.stockKg;
+          if (updates.pricePerKg !== undefined) apiUpdates.unit_price = updates.pricePerKg;
+          if (updates.stockKg !== undefined) apiUpdates.weight_kg = updates.stockKg;
           if (updates.lowStockThresholdKg !== undefined) apiUpdates.low_stock_threshold_kg = updates.lowStockThresholdKg;
-          if (updates.isActive !== undefined) apiUpdates.is_active = updates.isActive;
+          if (updates.isActive !== undefined) apiUpdates.status = updates.isActive ? 'active' : 'inactive';
 
-          await api.patch(`/products/${productId}`, apiUpdates);
+          console.log(`[STORE] Updating product ${productId} with:`, apiUpdates);
+          await api.patch(`/api/products/${productId}`, apiUpdates);
           const { fetchProducts } = get();
           await fetchProducts();
         } catch (error) {
           console.error("Error updating product:", error);
+          throw error; // Re-throw to handle in UI
         }
       },
 
@@ -462,7 +470,7 @@ export const useAppStore = create<AppState>()(
 
       addUser: async (user: User, actorId: UserId, password?: string) => {
         try {
-          await api.post("/users", { ...user, password });
+          await api.post("/api/users", { ...user, password });
           const { fetchUsers } = get();
           await fetchUsers();
         } catch (error) {
@@ -515,32 +523,44 @@ export const useAppStore = create<AppState>()(
       },
 
       initialize: async () => {
-        const { fetchProducts, fetchUsers, fetchTransactions } = get();
+        // Only fetch data if we have a token (user is logged in)
+        const { token, fetchProducts, fetchUsers, fetchTransactions } = get();
+        if (!token) {
+          console.log("[STORE] Skipping initialize - no token yet");
+          return;
+        }
         await Promise.all([fetchProducts(), fetchUsers(), fetchTransactions()]);
       },
 
       fetchProducts: async () => {
         try {
-          const data = await api.get("/products");
+          const { token } = get();
+          if (!token) {
+            console.log("[STORE] fetchProducts: Skipping - no token");
+            return;
+          }
+          console.log("[STORE] fetchProducts: Fetching with token...");
+          const data = await api.get("/api/products");
           const products = data.map((p: any) => ({
             id: p.id,
             name: p.name,
             code: p.code,
             category: p.category,
-            pricePerKg: Number(p.price_per_kg),
-            stockKg: Number(p.stock_kg),
+            pricePerKg: Number(p.unit_price),
+            stockKg: Number(p.weight_kg),
             lowStockThresholdKg: Number(p.low_stock_threshold_kg),
-            isActive: p.is_active,
+            isActive: p.status === 'active',
           }));
+          console.log(`[STORE] fetchProducts: Loaded ${products.length} products`);
           set({ products });
         } catch (error) {
-          console.error("Error fetching products:", error);
+          console.error("[STORE] Error fetching products:", error);
         }
       },
 
       fetchUsers: async () => {
         try {
-          const users = await api.get("/users");
+          const users = await api.get("/api/users");
           set({ users });
         } catch (error) {
           console.error("Error fetching users:", error);
@@ -549,12 +569,12 @@ export const useAppStore = create<AppState>()(
 
       fetchTransactions: async () => {
         try {
-          const data = await api.get("/transactions");
+          const data = await api.get("/api/transactions");
           const transactions = data.map((t: any) => ({
             id: t.id,
             cashierId: t.cashier_id,
             createdAt: t.created_at,
-            items: t.items,
+            items: Array.isArray(t.items) ? t.items : [],
             discount: t.discount,
             subtotal: Number(t.subtotal),
             total: Number(t.total),
@@ -566,9 +586,10 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      openShift: async (cashierId) => {
+      openShift: async (cashierId, branchId) => {
         try {
-          const shift = await api.post("/shifts/open", { cashier_id: cashierId });
+          const shift = await api.post("/api/shifts/open", { cashier_id: cashierId, branch_id: branchId });
+          // Set activeShift immediately for fast UI response
           set({
             activeShift: {
               id: shift.id,
@@ -577,16 +598,23 @@ export const useAppStore = create<AppState>()(
               status: shift.status
             }
           });
-          await get().fetchShifts();
+          // Fetch shifts in background (non-blocking)
+          get().fetchShifts();
         } catch (error) {
           console.error("Error opening shift:", error);
           throw error;
         }
       },
 
-      closeShift: async (shiftId, actualCounts) => {
+      closeShift: async (shiftId, actualCounts, payments) => {
         try {
-          await api.post(`/shifts/${shiftId}/close`, { actual_counts: actualCounts });
+          console.log("[STORE] closeShift called with:", { shiftId, actualCounts, payments });
+          const response = await api.post(`/api/shifts/${shiftId}/close`, {
+            closing_stock_map: actualCounts,
+            cash_received: payments.cash,
+            mpesa_received: payments.mpesa
+          });
+          console.log("[STORE] closeShift response:", response);
           set({ activeShift: undefined });
           await get().fetchShifts();
           await get().fetchProducts();
@@ -598,7 +626,7 @@ export const useAppStore = create<AppState>()(
 
       addStockAddition: async (addition) => {
         try {
-          await api.post("/stock-additions", {
+          await api.post("/api/stock-additions", {
             shift_id: addition.shiftId,
             item_id: addition.itemId,
             quantity_kg: addition.quantityKg,
@@ -625,22 +653,29 @@ export const useAppStore = create<AppState>()(
 
       fetchShifts: async (filters) => {
         try {
-          const data = await api.get("/shifts", filters);
+          const data = await api.get("/api/shifts", filters);
           const shifts = data.map((s: any) => ({
             id: s.id,
             cashierId: s.cashier_id,
             openedAt: s.opened_at,
             closedAt: s.closed_at,
             status: s.status,
-            cashierName: s.users?.name
+            cashierName: s.users?.name,
+            closingCash: s.closing_cash !== undefined && s.closing_cash !== null ? Number(s.closing_cash) : undefined,
+            closingMpesa: s.closing_mpesa !== undefined && s.closing_mpesa !== null ? Number(s.closing_mpesa) : undefined
           }));
           set({ recentShifts: shifts });
 
           // If we have an OPEN shift for the current user, set it as activeShift
           const currentUser = get().currentUser;
-          if (currentUser && !get().activeShift) {
-            const openShift = shifts.find((s: any) => s.cashierId === currentUser.id && s.status === 'OPEN');
-            if (openShift) set({ activeShift: openShift });
+          if (currentUser) {
+            // Check for 'open' (lowercase) - backend returns lowercase
+            const openShift = shifts.find((s: any) => s.cashierId === currentUser.id && (s.status === 'open' || s.status === 'OPEN'));
+            if (openShift) {
+              set({ activeShift: openShift });
+            } else if (get().activeShift && (get().activeShift?.status !== 'open' && get().activeShift?.status !== 'OPEN')) {
+              set({ activeShift: undefined });
+            }
           }
         } catch (error) {
           console.error("Error fetching shifts:", error);
@@ -649,7 +684,7 @@ export const useAppStore = create<AppState>()(
 
       fetchPendingAdditions: async () => {
         try {
-          const data = await api.get("/stock-additions", { status: 'PENDING' });
+          const data = await api.get("/api/stock-additions", { status: 'PENDING' });
           const additions = data.map((a: any) => ({
             id: a.id,
             shiftId: a.shift_id,
@@ -669,7 +704,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "eden-top-state",
+      name: "eden-drop-001-state",
       partialize: (state) => ({
         currentUser: state.currentUser,
         token: state.token,
@@ -678,6 +713,7 @@ export const useAppStore = create<AppState>()(
         transactions: state.transactions,
         auditLog: state.auditLog,
         settings: state.settings,
+        activeShift: state.activeShift,
       }),
     }
   )

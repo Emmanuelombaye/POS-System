@@ -62,7 +62,7 @@ npm run dev
 
 You should see:
 ```
-Eden Top backend listening on port 4000
+Eden Drop 001 backend listening on port 4000
 ```
 
 Test the health endpoint:

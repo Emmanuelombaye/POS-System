@@ -113,7 +113,7 @@ export const ManagerDashboard = () => {
                       {p.name}
                     </div>
                     <div className="text-[10px] text-amber-800/80 mt-0.5">
-                      {p.stockKg.toFixed(1)} kg in stock • min {p.lowStockThresholdKg} kg
+                      {(p.stockKg || 0).toFixed(1)} kg in stock • min {p.lowStockThresholdKg} kg
                     </div>
                   </div>
                   <Badge variant="warning">Reorder</Badge>
@@ -202,7 +202,7 @@ export const ManagerDashboard = () => {
                         </div>
                         <div className="mt-1 flex items-center justify-between text-[10px] text-gray-500">
                           <span>
-                            {cashier?.name ?? "Unknown"} • {tx.items.length} items •{" "}
+                            {cashier?.name ?? "Unknown"} • {(tx.items?.length ?? 0)} items •{" "}
                             {tx.paymentMethod.toUpperCase()}
                           </span>
                         </div>

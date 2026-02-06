@@ -53,7 +53,7 @@ Go to http://localhost:5175 in your browser (frontend is already running)
 Fill in:
 - **Role**: Admin
 - **User ID**: a1
-- **Password**: @AdminEdenTop
+- **Password**: @AdminEdenDrop001
 - **Branch**: (not needed for admin)
 
 Click "Sign In"
@@ -69,7 +69,7 @@ Open a new terminal and run:
 ```bash
 curl http://localhost:4000/health
 ```
-Should return: `{"status":"ok","service":"eden-top-backend","database":"supabase"}`
+Should return: `{"status":"ok","service":"eden-drop-001-backend","database":"supabase"}`
 
 If error → Backend isn't running. Run in `server/` folder:
 ```bash
@@ -86,7 +86,7 @@ Should return 5, not 0.
 If 0 → Complete Step 1 above.
 
 ### Check 3: Password exact match?
-Password is EXACTLY: `@AdminEdenTop`
+Password is EXACTLY: `@AdminEdenDrop001`
 (with the @ symbol at start, case-sensitive)
 
 ### Check 4: Firewall?
@@ -97,11 +97,11 @@ Make sure ports 4000 and 5175 aren't blocked by firewall.
 ## Login Test Credentials
 
 ```
-User: a1       | Password: @AdminEdenTop | Role: Admin
-User: m1       | Password: @AdminEdenTop | Role: Manager  
-User: c1       | Password: @AdminEdenTop | Role: Cashier (Branch 1)
-User: c2       | Password: @AdminEdenTop | Role: Cashier (Branch 2)
-User: c3       | Password: @AdminEdenTop | Role: Cashier (Branch 3)
+User: a1       | Password: @AdminEdenDrop001 | Role: Admin
+User: m1       | Password: @AdminEdenDrop001 | Role: Manager  
+User: c1       | Password: @AdminEdenDrop001 | Role: Cashier (Branch 1)
+User: c2       | Password: @AdminEdenDrop001 | Role: Cashier (Branch 2)
+User: c3       | Password: @AdminEdenDrop001 | Role: Cashier (Branch 3)
 ```
 
 ---
@@ -171,7 +171,7 @@ curl http://localhost:4000/health
 ```bash
 curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"userId":"a1","password":"@AdminEdenTop"}'
+  -d '{"userId":"a1","password":"@AdminEdenDrop001"}'
 ```
 
 ---
@@ -182,7 +182,7 @@ If you encounter issues:
 1. Check browser DevTools (F12 → Console tab) for frontend errors
 2. Check backend terminal for error messages
 3. Verify `SETUP_DATABASE.sql` was executed in Supabase
-4. Make sure you're using the exact password: `@AdminEdenTop`
+4. Make sure you're using the exact password: `@AdminEdenDrop001`
 5. Ensure ports 4000 and 5175 are available
 
 ---

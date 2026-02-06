@@ -1,4 +1,4 @@
-# 🎯 EDEN TOP POS - LOGIN FIX SUMMARY
+# 🎯 EDEN DROP 001 POS - LOGIN FIX SUMMARY
 
 ## 🚀 Status: READY TO LOGIN
 
@@ -70,7 +70,7 @@ Go to: http://localhost:5175
 ```
 Role: Admin
 User ID: a1
-Password: @AdminEdenTop
+Password: @AdminEdenDrop001
 ```
 
 Expected result: ✅ Redirect to Admin Dashboard
@@ -82,14 +82,14 @@ Expected result: ✅ Redirect to Admin Dashboard
 ```
 ID  | Name              | Role      | Password        | Notes
 ----|-------------------|-----------|-----------------|------------------
-a1  | Admin Eden        | admin     | @AdminEdenTop   | Full system access
-m1  | Manager John      | manager   | @AdminEdenTop   | Manager features
-c1  | Cashier David     | cashier   | @AdminEdenTop   | Branch 1 POS
-c2  | Cashier Mary      | cashier   | @AdminEdenTop   | Branch 2 POS
-c3  | Cashier Peter     | cashier   | @AdminEdenTop   | Branch 3 POS
+a1  | Admin Eden        | admin     | @AdminEdenDrop001   | Full system access
+m1  | Manager John      | manager   | @AdminEdenDrop001   | Manager features
+c1  | Cashier David     | cashier   | @AdminEdenDrop001   | Branch 1 POS
+c2  | Cashier Mary      | cashier   | @AdminEdenDrop001   | Branch 2 POS
+c3  | Cashier Peter     | cashier   | @AdminEdenDrop001   | Branch 3 POS
 ```
 
-**Password is exact**: `@AdminEdenTop` (case-sensitive, includes the `@`)
+**Password is exact**: `@AdminEdenDrop001` (case-sensitive, includes the `@`)
 
 ---
 
@@ -165,7 +165,7 @@ Before you start, verify:
 **Fix**: Run SETUP_DATABASE.sql in Supabase SQL Editor (Step 1 above)
 
 ### Issue: "Invalid password" error
-**Fix**: Password must be EXACTLY `@AdminEdenTop` (with @, case-sensitive)
+**Fix**: Password must be EXACTLY `@AdminEdenDrop001` (with @, case-sensitive)
 
 ### Issue: Cannot connect to backend
 **Fix**: 
@@ -220,7 +220,7 @@ Before you start, verify:
 ## 🚨 Critical Points
 
 ⚠️ **Must do SETUP_DATABASE.sql first** - Users won't exist without it
-⚠️ **Password is case-sensitive** - Must be exactly `@AdminEdenTop`
+⚠️ **Password is case-sensitive** - Must be exactly `@AdminEdenDrop001`
 ⚠️ **Backend must be running** - Port 4000 must be accessible
 ⚠️ **Supabase must be connected** - Check internet connection
 
@@ -230,7 +230,7 @@ Before you start, verify:
 
 1. Run the SQL setup in Supabase (takes 2 minutes)
 2. Go to http://localhost:5175
-3. Login with: **a1 / @AdminEdenTop / Admin**
+3. Login with: **a1 / @AdminEdenDrop001 / Admin**
 4. You should see the Admin Dashboard!
 
 ---

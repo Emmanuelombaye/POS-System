@@ -10,7 +10,11 @@ export interface DailySummary {
   branch: "Branch 1" | "Branch 2" | "Branch 3";
   cashReceived: number;
   mpesaReceived: number;
-  // TODO: Add expenses or other fields if needed
+  // Breakdown fields for real-time aggregation
+  manualCash?: number;
+  manualMpesa?: number;
+  transactionCash?: number;
+  transactionMpesa?: number;
 }
 
 interface WholesaleSummaryCardProps {

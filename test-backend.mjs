@@ -26,7 +26,7 @@ const testBackend = async () => {
     const loginRes = await fetch("http://localhost:4000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "a1", password: "@AdminEdenTop" })
+      body: JSON.stringify({ userId: "a1", password: "@AdminEdenDrop001" })
     });
     const loginData = await loginRes.json();
     if (loginRes.ok) {

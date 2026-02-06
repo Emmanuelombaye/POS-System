@@ -8,7 +8,7 @@
 
 ## 🎉 What You Now Have
 
-A fully-functional, **admin-only AI chat assistant** integrated into your Eden Top POS system that provides real-time insights on:
+A fully-functional, **admin-only AI chat assistant** integrated into your Eden Drop 001 POS system that provides real-time insights on:
 
 ✅ **Stock Management** - Low-stock alerts, variance detection, restock suggestions  
 ✅ **Shift Oversight** - Cashier monitoring, discrepancy flags, performance analysis  
@@ -489,7 +489,7 @@ All code is written, all documentation is prepared, all security is in place.
 
 ## 🎉 Conclusion
 
-Your Eden Top POS system now has an intelligent AI assistant that will help admins:
+Your Eden Drop 001 POS system now has an intelligent AI assistant that will help admins:
 - Optimize inventory
 - Monitor staff performance
 - Analyze sales trends

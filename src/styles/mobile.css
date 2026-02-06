@@ -1,0 +1,229 @@
+/* Mobile & Touch Optimization Styles */
+
+/* Improve touch targets - minimum 44x44px (Apple HIG) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Smooth scrolling on iOS */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Remove iOS input shadows */
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Prevent text selection on interactive elements */
+button,
+a,
+.selectable-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Enable text selection on input fields */
+input,
+textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Improve font rendering on mobile */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area insets for notched devices (iPhone X, etc.) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-top {
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  .safe-bottom {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Prevent overscroll/bounce on body */
+body {
+  overscroll-behavior: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Mobile-friendly card shadows */
+@media (max-width: 768px) {
+  .card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Landscape mode optimizations */
+@media (orientation: landscape) and (max-height: 600px) {
+  /* Reduce header size in landscape */
+  header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Compact spacing */
+  .mobile-compact {
+    padding: 0.5rem;
+    margin: 0.5rem;
+  }
+}
+
+/* PWA Display Mode - hide browser UI when installed */
+@media (display-mode: standalone) {
+  /* App is installed as PWA */
+  .pwa-only {
+    display: block;
+  }
+
+  .browser-only {
+    display: none;
+  }
+}
+
+@media (display-mode: browser) {
+  /* App is running in browser */
+  .pwa-only {
+    display: none;
+  }
+
+  .browser-only {
+    display: block;
+  }
+}
+
+/* Touch-friendly spacing for interactive elements */
+.touch-spacing {
+  margin: 0.5rem;
+  padding: 1rem;
+}
+
+/* Larger text for mobile readability */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Improve button press feedback */
+button:active,
+a:active,
+.button:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Loading states for better perceived performance */
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Improve scroll performance */
+.scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+}
+
+/* Optimize animations for mobile */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Bottom navigation safe area */
+.bottom-nav {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+}
+
+/* Floating action button positioning */
+.fab {
+  position: fixed;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  right: 1rem;
+  z-index: 999;
+}
+
+/* Full viewport height considering mobile browser bars */
+.mobile-vh-100 {
+  height: 100vh;
+  height: -webkit-fill-available;
+  height: fill-available;
+}

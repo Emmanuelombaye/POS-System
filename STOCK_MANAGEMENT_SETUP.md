@@ -72,7 +72,7 @@ Should return 3 rows.
 ## 🚀 Access Stock Management
 
 ### Via Admin Dashboard
-1. Login as admin (a1 / @AdminEdenTop)
+1. Login as admin (a1 / @AdminEdenDrop001)
 2. Go to Admin Dashboard
 3. Look for **Stock Management** link in menu
 

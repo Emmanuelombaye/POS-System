@@ -1,0 +1,43 @@
+{
+  "name": "Eden Drop 001 POS",
+  "short_name": "Eden POS",
+  "description": "Premium Butchery Point of Sale System - Works Online & Offline",
+  "theme_color": "#7c2d12",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sales",
+      "short_name": "Sales",
+      "description": "Quick access to sales",
+      "url": "/cashier",
+      "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Admin dashboard",
+      "url": "/admin",
+      "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96", "type": "image/svg+xml" }]
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "prefer_related_applications": false
+}

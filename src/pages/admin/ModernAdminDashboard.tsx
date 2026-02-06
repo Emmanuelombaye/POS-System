@@ -10,12 +10,19 @@ import {
   Settings,
   Shield,
   FileText,
+  Menu,
+  X,
+  TrendingDown,
 } from "lucide-react";
 import { UserManagement } from "@/components/admin/UserManagement";
+import { AdminUserManagement } from "@/components/admin/AdminUserManagement";
 import { BranchManagement } from "@/components/admin/BranchManagement";
 import { ProductManager } from "@/components/admin/ProductManager";
 import { StockManagement } from "@/components/stock/StockManagement";
+import { ClosedShiftsView } from "@/components/admin/ClosedShiftsView";
 import { AdminAIAssistant } from "@/components/admin/AdminAIAssistant";
+import { SalesTransactionInsights } from "@/components/admin/SalesTransactionInsights";
+import { AdminExpensesDashboard } from "@/components/admin/AdminExpensesDashboard";
 
 type Tab =
   | "overview"
@@ -24,6 +31,7 @@ type Tab =
   | "products"
   | "sales"
   | "analytics"
+  | "expenses"
   | "settings"
   | "audit";
 
@@ -34,6 +42,7 @@ const TABS = [
   { id: "products", label: "Products", icon: Package },
   { id: "sales", label: "Sales", icon: ShoppingCart },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "expenses", label: "Expenses", icon: TrendingDown },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "audit", label: "Audit Logs", icon: Shield },
 ] as const;
@@ -41,6 +50,12 @@ const TABS = [
 export const ModernAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleTabClick = (tabId: Tab) => {
+    setActiveTab(tabId);
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 relative">
@@ -49,33 +64,35 @@ export const ModernAdminDashboard = () => {
 
       {/* Top Navigation Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-6 py-4">
+        <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo & Title */}
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-burgundy to-red-600 shadow-lg">
-                <span className="text-white font-black text-xl">E</span>
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-burgundy to-red-600 shadow-lg flex-shrink-0">
+                <span className="text-white font-black text-lg md:text-xl">E</span>
               </div>
-              <div>
-                <h1 className="text-xl font-black text-gray-900">Eden Top Admin</h1>
-                <p className="text-xs font-semibold text-gray-500">Control Panel</p>
+              <div className="min-w-0">
+                <h1 className="text-base md:text-xl font-black text-gray-900 truncate">Eden Drop 001 Admin</h1>
+                <p className="text-xs font-semibold text-gray-500 hidden sm:block">Control Panel</p>
               </div>
             </div>
 
-            {/* System Status */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-xl">
-                <div className="relative flex h-2.5 w-2.5">
+            {/* System Status & Menu */}
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="flex items-center gap-2 bg-emerald-50 px-3 md:px-4 py-2 rounded-xl">
+                <div className="relative flex h-2.5 w-2.5 flex-shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </div>
-                <span className="text-sm font-bold text-emerald-700">System Online</span>
+                <span className="text-xs md:text-sm font-bold text-emerald-700">Online</span>
               </div>
+
+              {/* No menu needed - all tabs visible */}
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-none">
+          {/* Desktop Tab Navigation - Always Visible, Wrapping */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-4">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -84,19 +101,23 @@ export const ModernAdminDashboard = () => {
                   key={tab.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setActiveTab(tab.id as Tab)}
-                  className={`relative flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
+                  onClick={() => {
+                    setActiveTab(tab.id as Tab);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`relative flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg font-bold text-xs transition-all ${
                     isActive
                       ? "bg-gradient-to-r from-brand-burgundy to-red-600 text-white shadow-lg"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
+                  title={tab.label}
                 >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="truncate text-center text-xs">{tab.label}</span>
                   {isActive && (
                     <motion.div
                       layoutId="activeTab"
-                      className="absolute inset-0 bg-gradient-to-r from-brand-burgundy to-red-600 rounded-xl -z-10"
+                      className="absolute inset-0 bg-gradient-to-r from-brand-burgundy to-red-600 rounded-lg -z-10"
                       transition={{ type: "spring", duration: 0.5 }}
                     />
                   )}
@@ -104,6 +125,9 @@ export const ModernAdminDashboard = () => {
               );
             })}
           </div>
+
+          {/* Mobile Menu Button - Only for visual indicator */}
+          {/* Removed - tabs are now always visible in grid */}
         </div>
       </div>
 
@@ -116,11 +140,12 @@ export const ModernAdminDashboard = () => {
           transition={{ duration: 0.3 }}
         >
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "users" && <UserManagement />}
+          {activeTab === "users" && <AdminUserManagement />}
           {activeTab === "branches" && <BranchManagement />}
           {activeTab === "products" && <ProductManager />}
-          {activeTab === "sales" && <SalesTab />}
+          {activeTab === "sales" && <SalesTransactionInsights />}
           {activeTab === "analytics" && <AnalyticsTab />}
+          {activeTab === "expenses" && <AdminExpensesDashboard />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "audit" && <AuditTab />}
         </motion.div>
@@ -223,18 +248,57 @@ const OverviewTab = () => {
 
 // Sales Tab Component
 const SalesTab = () => {
+  const [viewMode, setViewMode] = useState<"transactions" | "stock">("transactions");
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h2 className="text-3xl font-black text-gray-900">Sales & Transactions</h2>
-        <p className="text-gray-500 font-semibold">
-          Stock management integrated for real-time opening, added, sold, and closing stock tracking.
+        <h2 className="text-3xl font-black text-gray-900">📊 Sales & Transactions</h2>
+        <p className="text-gray-600 font-semibold mt-2">
+          Real-time stock tracking from opening to closing with variance analysis
         </p>
       </div>
 
-      <div className="rounded-2xl border-2 border-gray-200 overflow-hidden">
-        <StockManagement />
+      {/* View Mode Tabs */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setViewMode("transactions")}
+          className={`px-6 py-3 font-bold border-b-2 transition-all ${
+            viewMode === "transactions"
+              ? "text-brand-burgundy border-brand-burgundy"
+              : "text-gray-600 border-transparent hover:text-gray-900"
+          }`}
+        >
+          💳 Closed Shifts & Variance
+        </button>
+        <button
+          onClick={() => setViewMode("stock")}
+          className={`px-6 py-3 font-bold border-b-2 transition-all ${
+            viewMode === "stock"
+              ? "text-brand-burgundy border-brand-burgundy"
+              : "text-gray-600 border-transparent hover:text-gray-900"
+          }`}
+        >
+          📦 Stock Management
+        </button>
       </div>
+
+      {/* Content */}
+      <motion.div
+        key={viewMode}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        {viewMode === "transactions" ? (
+          <ClosedShiftsView />
+        ) : (
+          <div className="rounded-2xl border-2 border-gray-200 overflow-hidden">
+            <StockManagement />
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };

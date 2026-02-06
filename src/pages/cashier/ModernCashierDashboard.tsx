@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/utils/format";
+import { AddExpenseModal } from "@/components/cashier/AddExpenseModal";
 import {
   Receipt,
   Trash2,
@@ -18,6 +19,7 @@ import {
   Check,
   Minus,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
 
 const CATEGORY_CONFIG = {
@@ -70,6 +72,7 @@ export const ModernCashierDashboard = () => {
     completeSale,
     clearCart,
     currentUser,
+    activeShift,
   } = useAppStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -77,6 +80,7 @@ export const ModernCashierDashboard = () => {
   const [weightInput, setWeightInput] = useState("1.00");
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   const subtotal = useMemo(
     () => cashierCart.reduce((sum, item) => sum + item.pricePerKg * item.weightKg, 0),
@@ -130,28 +134,39 @@ export const ModernCashierDashboard = () => {
   const totalItems = cashierCart.reduce((sum, item) => sum + item.weightKg, 0);
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 overflow-hidden">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col lg:flex-row bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 overflow-hidden">
       {/* LEFT PANEL - Products */}
-      <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden">
+      <div className="flex-1 flex flex-col p-4 sm:p-6 gap-4 overflow-hidden pb-[55vh] lg:pb-4">
         {/* Header Bar */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
             <h1 className="text-3xl font-black text-gray-900">POS Terminal</h1>
             <p className="text-sm text-gray-500 font-semibold mt-1">
               Welcome, <span className="text-brand-burgundy">{currentUser?.name}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100">
-            <div className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              onClick={() => setShowExpenseModal(true)}
+              disabled={!activeShift}
+              className="h-12 px-3 sm:px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              title={activeShift ? "Add an expense entry" : "Open shift first"}
+            >
+              <Wallet className="h-5 w-5 flex-shrink-0" />
+              <span className="hidden sm:inline text-sm">Expense</span>
+            </Button>
+            <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 sm:px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100 whitespace-nowrap">
+              <div className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </div>
+              <span className="text-sm font-bold text-gray-700">Online</span>
             </div>
-            <span className="text-sm font-bold text-gray-700">Online</span>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
+        <div className="relative sticky top-0 z-20 bg-slate-50/95 backdrop-blur rounded-2xl">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <Input
             placeholder="Search by name or code..."
@@ -191,7 +206,7 @@ export const ModernCashierDashboard = () => {
         </div>
 
         {/* Product Grid */}
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pb-4 auto-rows-min">
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 overflow-y-auto pb-4 auto-rows-min">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product, idx) => {
               const config = CATEGORY_CONFIG[product.category as keyof typeof CATEGORY_CONFIG];
@@ -268,9 +283,9 @@ export const ModernCashierDashboard = () => {
       </div>
 
       {/* RIGHT PANEL - Cart & Checkout */}
-      <div className="w-[420px] bg-white border-l border-gray-200 flex flex-col shadow-2xl">
+      <div className="w-full lg:w-[420px] bg-white border-t lg:border-t-0 lg:border-l border-gray-200 flex flex-col shadow-2xl fixed bottom-0 left-0 right-0 z-40 max-h-[55vh] lg:static lg:max-h-none rounded-t-3xl lg:rounded-none">
         {/* Cart Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-brand-burgundy to-red-600">
+        <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-brand-burgundy to-red-600 rounded-t-3xl lg:rounded-none">
           <div className="flex items-center justify-between text-white mb-4">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur">
@@ -295,7 +310,7 @@ export const ModernCashierDashboard = () => {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
           <AnimatePresence>
             {cashierCart.length === 0 ? (
               <motion.div
@@ -375,7 +390,7 @@ export const ModernCashierDashboard = () => {
 
         {/* Checkout Summary */}
         {cashierCart.length > 0 && (
-          <div className="border-t border-gray-200 p-6 space-y-6 bg-gray-50">
+          <div className="border-t border-gray-200 p-4 sm:p-6 space-y-5 bg-gray-50 sticky bottom-0">
             {/* Totals */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm font-bold text-gray-600">
@@ -431,6 +446,17 @@ export const ModernCashierDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Action Button - New Sale */}
+      {cashierCart.length > 0 && (
+        <Button
+          onClick={clearCart}
+          className="fixed bottom-28 right-4 z-50 h-14 w-14 rounded-full bg-brand-burgundy text-white shadow-2xl lg:hidden"
+          title="New Sale"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      )}
 
       {/* Product Selection Modal */}
       <AnimatePresence>
@@ -518,6 +544,12 @@ export const ModernCashierDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Expense Modal */}
+      <AddExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+      />
     </div>
   );
 };

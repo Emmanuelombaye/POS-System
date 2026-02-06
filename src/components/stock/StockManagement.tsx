@@ -23,6 +23,23 @@ interface StockEntry {
   };
 }
 
+interface CashierStock {
+  cashier_id: string;
+  cashier_name: string;
+  cashier_email: string;
+  shift_id: string;
+  products: Array<{
+    product_id: string;
+    product_name: string;
+    category: string;
+    opening_stock: number;
+    added_stock: number;
+    sold_stock: number;
+    closing_stock: number;
+    variance: number;
+  }>;
+}
+
 interface StockSummary {
   total_opening: number;
   total_added: number;
@@ -32,27 +49,46 @@ interface StockSummary {
   entries: StockEntry[];
 }
 
+interface CashierStockData {
+  cashiers: CashierStock[];
+  date: string;
+  branch_id: string;
+}
+
 export const StockManagement = () => {
   const currentBranch = useAppStore((s) => s.currentBranch);
   const token = useAppStore((s) => s.token);
 
   const [summary, setSummary] = useState<StockSummary | null>(null);
+  const [cashierData, setCashierData] = useState<CashierStockData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"summary" | "by-cashier">("by-cashier");
 
   // Fetch stock data
   const fetchStockData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:4000/shift-stock/summary?branch_id=${currentBranch}&date=${selectedDate}`, {
+      // Fetch summary
+      const summaryResponse = await fetch(`http://localhost:4000/api/shift-stock/summary?branch_id=${currentBranch}&date=${selectedDate}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setSummary(data);
-        setLastUpdated(new Date().toLocaleTimeString());
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
       }
+
+      // Fetch by cashier
+      const cashierResponse = await fetch(`http://localhost:4000/api/shift-stock/by-cashier?branch_id=${currentBranch}&date=${selectedDate}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (cashierResponse.ok) {
+        const cashierDataResult = await cashierResponse.json();
+        setCashierData(cashierDataResult);
+      }
+
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch (error) {
       console.error("Failed to fetch stock data:", error);
     }
@@ -177,7 +213,92 @@ export const StockManagement = () => {
 
         {/* Stock Entries Table */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-          <Card className="bg-slate-900 border-slate-800">
+          {/* View Mode Toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setViewMode("by-cashier")}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                viewMode === "by-cashier"
+                  ? "bg-brand-burgundy text-white"
+                  : "bg-slate-800 text-gray-400 hover:text-white"
+              }`}
+            >
+              👥 By Cashier
+            </button>
+            <button
+              onClick={() => setViewMode("summary")}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                viewMode === "summary"
+                  ? "bg-brand-burgundy text-white"
+                  : "bg-slate-800 text-gray-400 hover:text-white"
+              }`}
+            >
+              📊 Summary
+            </button>
+          </div>
+
+          {viewMode === "by-cashier" ? (
+            /* Cashier View */
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="text-center py-8 text-gray-400">Loading cashier data...</div>
+              ) : cashierData && cashierData.cashiers.length > 0 ? (
+                cashierData.cashiers.map((cashier) => (
+                  <Card key={cashier.cashier_id} className="bg-slate-900 border-slate-800">
+                    <CardHeader className="bg-slate-800/50">
+                      <CardTitle className="text-white flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-brand-burgundy flex items-center justify-center text-white font-bold">
+                            {cashier.cashier_name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-black">{cashier.cashier_name}</div>
+                            <div className="text-xs text-gray-400 font-normal">{cashier.cashier_email}</div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Shift ID: {cashier.shift_id.substring(0, 8)}
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-700">
+                              <th className="text-left py-2 px-2 text-gray-400 font-semibold">Product</th>
+                              <th className="text-right py-2 px-2 text-gray-400 font-semibold">Opening</th>
+                              <th className="text-right py-2 px-2 text-gray-400 font-semibold">Added</th>
+                              <th className="text-right py-2 px-2 text-gray-400 font-semibold">Sold</th>
+                              <th className="text-right py-2 px-2 text-gray-400 font-semibold">Current</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cashier.products.map((product) => (
+                              <tr key={product.product_id} className="border-b border-slate-700/50 hover:bg-slate-800/50">
+                                <td className="py-2 px-2">
+                                  <div className="font-semibold text-white">{product.product_name}</div>
+                                  <div className="text-xs text-gray-500">{product.category}</div>
+                                </td>
+                                <td className="text-right py-2 px-2 text-white">{product.opening_stock.toFixed(1)}kg</td>
+                                <td className="text-right py-2 px-2 text-green-400">+{product.added_stock.toFixed(1)}kg</td>
+                                <td className="text-right py-2 px-2 text-red-400">-{product.sold_stock.toFixed(1)}kg</td>
+                                <td className="text-right py-2 px-2 font-bold text-brand-copper">{product.closing_stock.toFixed(1)}kg</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400">No shifts opened for this date</div>
+              )}
+            </div>
+          ) : (
+            /* Summary View */
+            <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Package className="h-5 w-5" />
@@ -245,6 +366,7 @@ export const StockManagement = () => {
               )}
             </CardContent>
           </Card>
+          )}
         </motion.div>
       </div>
     </div>

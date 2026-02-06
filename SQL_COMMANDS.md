@@ -10,7 +10,7 @@ Select and copy everything from `BEGIN` to `END` below.
 ### BEGIN - COPY FROM HERE
 
 ```sql
--- EDEN TOP POS - Quick Setup
+-- EDEN DROP 001 POS - Quick Setup
 -- Paste this entire block into Supabase SQL Editor and click RUN
 
 -- CREATE USERS TABLE
@@ -26,25 +26,25 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 -- INSERT ADMIN USER
 INSERT INTO public.users (id, name, role, email, phone) 
-VALUES ('a1', 'Admin Eden', 'admin', 'admin@edentop.com', '+254700000001')
+VALUES ('a1', 'Admin Eden', 'admin', 'admin@edendrop001.com', '+254700000001')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role;
 
 -- INSERT MANAGER USER
 INSERT INTO public.users (id, name, role, email, phone) 
-VALUES ('m1', 'Manager John', 'manager', 'manager@edentop.com', '+254700000002')
+VALUES ('m1', 'Manager John', 'manager', 'manager@edendrop001.com', '+254700000002')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role;
 
 -- INSERT CASHIER USERS
 INSERT INTO public.users (id, name, role, email, phone) 
-VALUES ('c1', 'Cashier David', 'cashier', 'cashier1@edentop.com', '+254700000003')
+VALUES ('c1', 'Cashier David', 'cashier', 'cashier1@edendrop001.com', '+254700000003')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role;
 
 INSERT INTO public.users (id, name, role, email, phone) 
-VALUES ('c2', 'Cashier Mary', 'cashier', 'cashier2@edentop.com', '+254700000004')
+VALUES ('c2', 'Cashier Mary', 'cashier', 'cashier2@edendrop001.com', '+254700000004')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role;
 
 INSERT INTO public.users (id, name, role, email, phone) 
-VALUES ('c3', 'Cashier Peter', 'cashier', 'cashier3@edentop.com', '+254700000005')
+VALUES ('c3', 'Cashier Peter', 'cashier', 'cashier3@edendrop001.com', '+254700000005')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role;
 
 -- CREATE PRODUCTS TABLE
@@ -143,11 +143,11 @@ This means all users and products were created successfully!
 ## 🔑 Login Credentials (Now Ready to Use)
 
 ```
-User ID: a1  | Password: @AdminEdenTop | Role: Admin
-User ID: m1  | Password: @AdminEdenTop | Role: Manager
-User ID: c1  | Password: @AdminEdenTop | Role: Cashier
-User ID: c2  | Password: @AdminEdenTop | Role: Cashier
-User ID: c3  | Password: @AdminEdenTop | Role: Cashier
+User ID: a1  | Password: @AdminEdenDrop001 | Role: Admin
+User ID: m1  | Password: @AdminEdenDrop001 | Role: Manager
+User ID: c1  | Password: @AdminEdenDrop001 | Role: Cashier
+User ID: c2  | Password: @AdminEdenDrop001 | Role: Cashier
+User ID: c3  | Password: @AdminEdenDrop001 | Role: Cashier
 ```
 
 ---
@@ -158,7 +158,7 @@ User ID: c3  | Password: @AdminEdenTop | Role: Cashier
 2. Fill in:
    - Role: Admin
    - User ID: a1
-   - Password: @AdminEdenTop
+   - Password: @AdminEdenDrop001
 3. Click "Sign In"
 4. You should see the Admin Dashboard!
 

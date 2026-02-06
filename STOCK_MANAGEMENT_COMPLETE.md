@@ -267,7 +267,7 @@ StockAlertsPanel Displays Unresolved Alerts
 ## 🎓 Usage Examples
 
 ### For Admin - Adding Stock
-1. Login with admin account (a1 / @AdminEdenTop)
+1. Login with admin account (a1 / @AdminEdenDrop001)
 2. Navigate to Stock Management (`/stock`)
 3. Click "Add Stock" button
 4. Select product (e.g., Beef Premium Cut)
