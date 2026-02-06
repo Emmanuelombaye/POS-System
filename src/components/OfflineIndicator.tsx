@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { WifiOff, Wifi, Download, RefreshCw } from "lucide-react";
+import { WifiOff, Download, RefreshCw } from "lucide-react";
 import { useOfflineStore } from "@/store/offlineStore";
 import { showInstallPrompt, isAppInstalled } from "@/utils/pwa";
 import { Button } from "./ui/button";
@@ -91,22 +91,7 @@ export const OfflineIndicator = () => {
         )}
       </AnimatePresence>
 
-      {/* Connection Restored Notification */}
-      <AnimatePresence>
-        {isOnline && (
-          <motion.div
-            key="online-notification"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed top-20 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-2"
-          >
-            <Wifi className="h-5 w-5" />
-            <span className="font-semibold">Back online!</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </>
   );
 };
