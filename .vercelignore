@@ -1,0 +1,4 @@
+server
+api
+*.md
+node_modules
