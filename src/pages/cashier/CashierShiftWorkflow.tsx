@@ -92,6 +92,13 @@ export const CashierShiftWorkflow = () => {
   const [cashReceived, setCashReceived] = useState(0);
   const [mpesaReceived, setMpesaReceived] = useState(0);
 
+  // Mid-shift expenses state (submitted immediately)
+  const [midShiftExpenses, setMidShiftExpenses] = useState<Array<{ id: string; category: string; amount: number; payment_method: "cash" | "mpesa"; status: string }>>([]);
+  const [midShiftExpenseCategory, setMidShiftExpenseCategory] = useState("Transport");
+  const [midShiftExpenseAmount, setMidShiftExpenseAmount] = useState<number | "">("");
+  const [midShiftExpenseMethod, setMidShiftExpenseMethod] = useState<"cash" | "mpesa">("cash");
+  const [submittingMidShiftExpense, setSubmittingMidShiftExpense] = useState(false);
+
   // Closing expenses state
   const [closingExpenses, setClosingExpenses] = useState<Array<{ id: string; category: string; amount: number; payment_method: "cash" | "mpesa" }>>([]);
   const [newExpenseCategory, setNewExpenseCategory] = useState("Transport");
@@ -365,6 +372,67 @@ export const CashierShiftWorkflow = () => {
       payment_method: newExpenseMethod,
     });
     setShowConfirmExpense(true);
+  };
+
+  // ============================================================================
+  // Mid-shift expense submission (immediate to API)
+  // ============================================================================
+  const handleSubmitMidShiftExpense = async () => {
+    if (!midShiftExpenseAmount || Number(midShiftExpenseAmount) <= 0) {
+      setError("Please enter a valid expense amount");
+      return;
+    }
+
+    const shiftId = getShiftId(shiftData);
+    if (!shiftId) {
+      setError("Shift data is missing. Cannot add expense.");
+      return;
+    }
+
+    setSubmittingMidShiftExpense(true);
+    setError(null);
+
+    try {
+      console.log(`[MID_SHIFT_EXPENSE] Submitting expense: ${midShiftExpenseCategory} - KES ${midShiftExpenseAmount}`);
+      
+      const response = await api.post("/api/expenses", {
+        shift_id: shiftId,
+        cashier_id: currentUser?.id,
+        branch_id: shiftData?.branch_id || "unknown",
+        amount: Number(midShiftExpenseAmount),
+        category: midShiftExpenseCategory,
+        payment_method: midShiftExpenseMethod,
+        description: `Added during shift (${new Date().toLocaleTimeString()})`,
+      });
+
+      if (response?.expense) {
+        console.log(`[MID_SHIFT_EXPENSE] Success - Expense saved with ID: ${response.expense.id}`);
+        
+        // Add to submitted expenses list
+        const newExpense = {
+          id: response.expense.id,
+          category: midShiftExpenseCategory,
+          amount: Number(midShiftExpenseAmount),
+          payment_method: midShiftExpenseMethod,
+          status: "Submitted",
+        };
+        
+        setMidShiftExpenses((prev) => [...prev, newExpense]);
+        
+        // Clear form for next entry
+        setMidShiftExpenseAmount("");
+        setMidShiftExpenseCategory("Transport");
+        setMidShiftExpenseMethod("cash");
+      } else {
+        throw new Error("Failed to save expense - no response");
+      }
+    } catch (err) {
+      const errorMsg = (err as Error).message || "Failed to submit expense";
+      console.error("[MID_SHIFT_EXPENSE_ERROR]", errorMsg);
+      setError(`Expense submission failed: ${errorMsg}`);
+    } finally {
+      setSubmittingMidShiftExpense(false);
+    }
   };
 
   const handleConfirmExpense = () => {
@@ -1027,6 +1095,121 @@ export const CashierShiftWorkflow = () => {
                       {shiftData.total_added_kg.toFixed(1)}kg
                     </span>
                   </div>
+                </div>
+              </Card>
+
+              {/* Mid-Shift Expenses */}
+              <Card className="rounded-xl shadow-sm overflow-hidden border-2 border-orange-200">
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6">
+                  <h2 className="text-xl font-black text-white">💰 Expenses (During Shift)</h2>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <p className="text-sm text-slate-600">
+                    Add expenses anytime during the shift. They are submitted immediately to the system.
+                  </p>
+
+                  {/* Expense Input Form */}
+                  <div className="space-y-3 bg-orange-50 p-4 rounded-lg">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-2">
+                        Category
+                      </label>
+                      <select
+                        value={midShiftExpenseCategory}
+                        onChange={(e) => setMidShiftExpenseCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
+                      >
+                        {EXPENSE_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-2">
+                        Amount (KES)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={midShiftExpenseAmount}
+                        onChange={(e) => setMidShiftExpenseAmount(e.target.value ? Number(e.target.value) : "")}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setMidShiftExpenseMethod("cash")}
+                        className={`h-9 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+                          midShiftExpenseMethod === "cash"
+                            ? "bg-green-600 text-white"
+                            : "bg-white text-slate-600 border border-slate-200 hover:border-green-600"
+                        }`}
+                      >
+                        💰 Cash
+                      </button>
+                      <button
+                        onClick={() => setMidShiftExpenseMethod("mpesa")}
+                        className={`h-9 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+                          midShiftExpenseMethod === "mpesa"
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-slate-600 border border-slate-200 hover:border-blue-600"
+                        }`}
+                      >
+                        📱 M-Pesa
+                      </button>
+                    </div>
+
+                    <Button
+                      onClick={handleSubmitMidShiftExpense}
+                      disabled={submittingMidShiftExpense || !midShiftExpenseAmount}
+                      className="w-full h-10 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 disabled:bg-slate-300 transition-all flex items-center justify-center gap-2"
+                    >
+                      {submittingMidShiftExpense ? (
+                        <>
+                          <Loader className="h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          Submit Expense
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Submitted Expenses List */}
+                  {midShiftExpenses.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        ✓ Submitted ({midShiftExpenses.length})
+                      </div>
+                      {midShiftExpenses.map((exp) => (
+                        <motion.div
+                          key={exp.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex items-center justify-between bg-white border-2 border-orange-200 p-3 rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="text-sm font-bold text-slate-900">{exp.category}</div>
+                            <div className="text-[10px] text-orange-600 font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span>✓ Saved</span>
+                              {exp.payment_method === "cash" ? "💰" : "📱"}
+                            </div>
+                          </div>
+                          <div className="text-sm font-black text-slate-900">KES {exp.amount.toFixed(2)}</div>
+                        </motion.div>
+                      ))}
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs font-bold text-orange-900 mt-2">
+                        Shift Total: KES {midShiftExpenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
 
