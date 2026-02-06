@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/store/appStore";
+import { api } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -115,17 +116,10 @@ export const CashierShiftWorkflow = () => {
       }
 
       try {
-        const response = await fetch(
-          `/api/shifts/active/${currentUser.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-            },
-          }
-        );
+        const data = await api.get(`/api/shifts/active/${currentUser.id}`);
+        const response = { ok: true };
 
         if (response.ok) {
-          const data = await safeJson(response);
           if (data?.shift && (data.shift.status === "open" || data.shift.status === "OPEN")) {
             // ✅ ACTIVE SHIFT FOUND - AUTO-RESUME (NO ERROR, NO BUTTON CLICK NEEDED)
             console.log("[Shift Auto-Resumed] Welcome back! Shift:", data.shift.shift_id);
@@ -172,24 +166,7 @@ export const CashierShiftWorkflow = () => {
   const fetchShiftData = async () => {
     if (!shiftData) return;
     try {
-      const response = await fetch(
-        `/api/shifts/active/${currentUser?.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        // Only log non-404 errors to avoid spam during polling
-        if (response.status !== 404) {
-          console.warn(
-            `[SHIFT_DATA] Error ${response.status}: ${response.statusText}`
-          );
-        }
-        return;
-      }
-      const data = await safeJson(response);
+      const data = await api.get(`/api/shifts/active/${currentUser?.id}`);
       if (data?.shift) {
         setShiftData(data.shift);
         setStockEntries(data.stock_entries || []);
@@ -206,52 +183,20 @@ export const CashierShiftWorkflow = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/shifts/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-        },
-        body: JSON.stringify({
-          cashier_id: currentUser?.id,
-          cashier_name: currentUser?.name,
-          branch_id: currentUser?.branch_id || "eden-drop-tamasha",
-        }),
+      const data = await api.post("/api/shifts/start", {
+        cashier_id: currentUser?.id,
+        cashier_name: currentUser?.name,
+        branch_id: currentUser?.branch_id || "eden-drop-tamasha",
       });
-
-      if (!response.ok) {
-        const errorData = await safeJson(response);
-        
-        // Handle duplicate shift error - tell user to resume instead
-        if (errorData?.code === "DUPLICATE_ACTIVE_SHIFT") {
-          const msg = `You already have an active shift from ${errorData.shift_date}. Try logging out and back in to resume it.`;
-          setError(msg);
-          throw new Error(msg);
-        }
-        
-        throw new Error(errorData?.message || errorData?.error || "Failed to start shift");
-      }
-
-      const data = await safeJson(response);
-      if (!data?.shift?.shift_id) {
-        throw new Error("Shift started but response was empty. Please retry.");
-      }
       console.log("[Shift Started]", data.shift);
       setShiftData(data.shift);
       
       // Fetch stock entries immediately after starting shift
-      const shiftDetailsResponse = await fetch(
-        `/api/shifts/${data.shift.shift_id}/details`,
-        {
-          headers: {
-            Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-          },
-        }
-      );
-      
-      if (shiftDetailsResponse.ok) {
-        const shiftDetails = await safeJson(shiftDetailsResponse);
+      try {
+        const shiftDetails = await api.get(`/api/shifts/${data.shift.shift_id}/details`);
         setStockEntries(shiftDetails?.stock_reconciliation?.entries || []);
+      } catch (err) {
+        console.warn("Could not fetch initial stock details", err);
       }
       
       setStage("active");
@@ -314,31 +259,20 @@ export const CashierShiftWorkflow = () => {
       if (!shiftId) {
         throw new Error("Shift ID is missing");
       }
-      const response = await fetch(
+      const data = await api.post(
         `/api/shifts/${shiftId}/add-sale`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-          },
-          body: JSON.stringify({
-            items: cart.map((item) => ({
-              product_id: item.product_id,
-              product_name: item.product_name,
-              weight_kg: item.weight_kg,
-              unit_price: item.unit_price,
-              amount: item.weight_kg * item.unit_price,
-            })),
-            payment_method: paymentMethod,
-            total_amount: cartSubtotal,
-          }),
+          items: cart.map((item) => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            weight_kg: item.weight_kg,
+            unit_price: item.unit_price,
+            amount: item.weight_kg * item.unit_price,
+          })),
+          payment_method: paymentMethod,
+          total_amount: cartSubtotal,
         }
       );
-
-      if (!response.ok) throw new Error("Failed to confirm sale");
-
-      const data = await safeJson(response);
       console.log("Sale confirmed:", data);
 
       // Clear cart and refresh shift data
@@ -384,23 +318,14 @@ export const CashierShiftWorkflow = () => {
       if (!shiftId) {
         throw new Error("Shift ID is missing");
       }
-      const response = await fetch(
+      await api.post(
         `/api/shifts/${shiftId}/add-stock`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-          },
-          body: JSON.stringify({
-            product_id: productId,
-            quantity_kg: quantity,
-            supplier: "Manual Addition",
-          }),
+          product_id: productId,
+          quantity_kg: quantity,
+          supplier: "Manual Addition",
         }
       );
-
-      if (!response.ok) throw new Error("Failed to add stock");
 
       await fetchShiftData();
       
@@ -503,21 +428,14 @@ export const CashierShiftWorkflow = () => {
       if (closingExpenses.length > 0) {
         for (const expense of closingExpenses) {
           try {
-            await fetch("/api/expenses", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-              },
-              body: JSON.stringify({
-                shift_id: shiftId,
-                cashier_id: currentUser?.id,
-                branch_id: shiftData?.branch_id || "unknown",
-                amount: expense.amount,
-                category: expense.category,
-                payment_method: expense.payment_method,
-                description: "Added during shift closing",
-              }),
+            await api.post("/api/expenses", {
+              shift_id: shiftId,
+              cashier_id: currentUser?.id,
+              branch_id: shiftData?.branch_id || "unknown",
+              amount: expense.amount,
+              category: expense.category,
+              payment_method: expense.payment_method,
+              description: "Added during shift closing",
             });
           } catch (err) {
             console.error("[EXPENSE_SAVE_ERROR]", err);
@@ -526,31 +444,19 @@ export const CashierShiftWorkflow = () => {
       }
       
       // Then close the shift
-      const response = await fetch(
+      const data = await api.post(
         `/api/shifts/${shiftId}/close`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-          },
-          body: JSON.stringify({
-            closing_stock_map: closingStock,
-            cash_received: cashReceived,
-            mpesa_received: mpesaReceived,
-          }),
+          closing_stock_map: closingStock,
+          cash_received: cashReceived,
+          mpesa_received: mpesaReceived,
         }
       );
 
-      if (!response.ok) {
-        const errorData = await safeJson(response);
-        const errorMsg =
-          errorData?.error ||
-          `Server error: ${response.status} ${response.statusText}`;
-        throw new Error(errorMsg);
+      if (!data) {
+        throw new Error("Failed to close shift");
       }
 
-      const data = await safeJson(response);
       console.log("[SHIFT_CLOSED] Success:", data);
 
       setClosingExpenses([]);
