@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -14,6 +14,8 @@ import {
   X,
   TrendingDown,
 } from "lucide-react";
+import { useAppStore } from "@/store/appStore";
+import { api } from "@/utils/api";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AdminUserManagement } from "@/components/admin/AdminUserManagement";
 import { BranchManagement } from "@/components/admin/BranchManagement";
@@ -156,45 +158,92 @@ export const ModernAdminDashboard = () => {
 
 // Overview Tab Component
 const OverviewTab = () => {
+  const { users, products, transactions } = useAppStore();
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    activeBranches: 0,
+    systemUsers: 0,
+    totalProducts: 0,
+    lowStockProducts: 0,
+  });
+
+  useEffect(() => {
+    const calculateStats = () => {
+      // Calculate total revenue (MTD)
+      const currentDate = new Date();
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthTransactions = transactions.filter((t: any) => {
+        const transDate = new Date(t.created_at || new Date());
+        return transDate >= monthStart;
+      });
+      const totalRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+
+      // Get user counts by role
+      const usersByRole = users.reduce((acc: any, u: any) => {
+        acc[u.role] = (acc[u.role] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Count low stock products (assuming low stock threshold is 5kg or less)
+      const lowStockCount = products.filter((p: any) => p.stock_kg <= 5).length;
+
+      setStats({
+        totalRevenue: Math.round(totalRevenue),
+        activeBranches: 3, // Fixed - would need separate API call
+        systemUsers: users.length,
+        totalProducts: products.length,
+        lowStockProducts: lowStockCount,
+      });
+    };
+
+    calculateStats();
+  }, [users, products, transactions]);
+
+  const formatCurrency = (value: number) => {
+    return `KES ${value.toLocaleString()}`;
+  };
+
+  const statCards = [
+    {
+      label: "Total Revenue (MTD)",
+      value: formatCurrency(stats.totalRevenue),
+      change: stats.totalRevenue > 0 ? "This month" : "No sales yet",
+      icon: <FileText className="h-6 w-6" />,
+      color: "emerald",
+    },
+    {
+      label: "Active Branches",
+      value: stats.activeBranches.toString(),
+      change: "All operational",
+      icon: <Building2 className="h-6 w-6" />,
+      color: "blue",
+    },
+    {
+      label: "System Users",
+      value: stats.systemUsers.toString(),
+      change: `${users.filter((u: any) => u.role === "cashier").length} Cashiers`,
+      icon: <Users className="h-6 w-6" />,
+      color: "purple",
+    },
+    {
+      label: "Products",
+      value: stats.totalProducts.toString(),
+      change: `${stats.lowStockProducts} Low Stock`,
+      icon: <Package className="h-6 w-6" />,
+      color: "amber",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-black text-gray-900 mb-2">System Overview</h2>
-        <p className="text-gray-500 font-semibold">Welcome to your admin control panel</p>
+        <p className="text-gray-500 font-semibold">Real-time system metrics and analytics</p>
       </div>
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Total Revenue (MTD)",
-            value: "KES 7,500,000",
-            change: "+12.5%",
-            icon: <FileText className="h-6 w-6" />,
-            color: "emerald",
-          },
-          {
-            label: "Active Branches",
-            value: "3",
-            change: "All operational",
-            icon: <Building2 className="h-6 w-6" />,
-            color: "blue",
-          },
-          {
-            label: "System Users",
-            value: "15",
-            change: "5 Cashiers, 3 Managers",
-            icon: <Users className="h-6 w-6" />,
-            color: "purple",
-          },
-          {
-            label: "Products",
-            value: "135",
-            change: "12 Low Stock",
-            icon: <Package className="h-6 w-6" />,
-            color: "amber",
-          },
-        ].map((stat, idx) => (
+        {statCards.map((stat, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, y: 20 }}
@@ -221,24 +270,35 @@ const OverviewTab = () => {
         <div className="bg-white border-2 border-gray-200 rounded-2xl p-6">
           <h3 className="font-black text-xl text-gray-900 mb-2">Recent Activity</h3>
           <div className="space-y-3">
-            <div className="text-sm">
-              <p className="font-bold text-gray-900">New user added</p>
-              <p className="text-gray-500 font-semibold">5 minutes ago</p>
-            </div>
-            <div className="text-sm">
-              <p className="font-bold text-gray-900">Product updated</p>
-              <p className="text-gray-500 font-semibold">1 hour ago</p>
-            </div>
+            {transactions.slice(-2).map((t: any, idx: number) => (
+              <div key={idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
+                <p className="font-bold text-gray-900">
+                  {t.type === "sale" ? "Sale recorded" : "Transaction"}
+                </p>
+                <p className="text-gray-500 font-semibold">
+                  {new Date(t.created_at || new Date()).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+            {transactions.length === 0 && (
+              <p className="text-gray-500 text-sm">No recent transactions</p>
+            )}
           </div>
         </div>
 
         <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
           <h3 className="font-black text-xl text-amber-900 mb-2">Alerts</h3>
           <div className="space-y-3">
-            <div className="text-sm">
-              <p className="font-bold text-amber-900">12 Products Low Stock</p>
-              <p className="text-amber-700 font-semibold">Requires attention</p>
-            </div>
+            {stats.lowStockProducts > 0 ? (
+              <div className="text-sm">
+                <p className="font-bold text-amber-900">
+                  {stats.lowStockProducts} Products Low Stock
+                </p>
+                <p className="text-amber-700 font-semibold">Requires attention</p>
+              </div>
+            ) : (
+              <p className="text-amber-700 font-semibold">All products well stocked</p>
+            )}
           </div>
         </div>
       </div>
