@@ -365,14 +365,7 @@ const SalesTab = () => {
 
 // Analytics Tab Component  
 const AnalyticsTab = () => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-black text-gray-900">Analytics & Reports</h2>
-      <div className="bg-white rounded-2xl p-8 border-2 border-gray-200">
-        <p className="text-gray-500 font-semibold">Analytics dashboard coming soon...</p>
-      </div>
-    </div>
-  );
+  return <AdminAnalyticsDashboard />;
 };
 
 // Settings Tab Component
@@ -389,11 +382,56 @@ const SettingsTab = () => {
 
 // Audit Tab Component
 const AuditTab = () => {
+  const { auditLog } = useAppStore();
+
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-black text-gray-900">Audit & Security Logs</h2>
-      <div className="bg-white rounded-2xl p-8 border-2 border-gray-200">
-        <p className="text-gray-500 font-semibold">Audit logs coming soon...</p>
+      <div>
+        <h2 className="text-3xl font-black text-gray-900">Audit & Security Logs</h2>
+        <p className="text-gray-500 font-semibold">System activity tracking and security events</p>
+      </div>
+
+      <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b-2 border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Timestamp</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Action</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Actor</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditLog.length > 0 ? (
+                auditLog.slice(-20).map((log: any, idx: number) => (
+                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">{log.action}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{log.actorName}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        log.role === "admin" ? "bg-red-100 text-red-700" :
+                        log.role === "manager" ? "bg-blue-100 text-blue-700" :
+                        "bg-gray-100 text-gray-700"
+                      }`}>
+                        {log.role}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500 font-semibold">
+                    No audit logs yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
