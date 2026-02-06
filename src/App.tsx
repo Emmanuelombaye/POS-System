@@ -16,6 +16,7 @@ import { useOfflineStore } from "@/store/offlineStore";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { registerServiceWorker, initInstallPrompt, addNetworkListener } from "@/utils/pwa";
+import { syncOfflineQueue } from "@/utils/api";
 
 const RequireRole = ({
   role,
@@ -75,6 +76,8 @@ export const App = () => {
       () => {
         console.log('[App] Network: ONLINE');
         setOnline(true);
+        // Sync any queued offline requests
+        syncOfflineQueue().catch(err => console.error('[App] Offline sync error:', err));
       },
       () => {
         console.log('[App] Network: OFFLINE');
