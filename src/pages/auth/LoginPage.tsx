@@ -43,6 +43,20 @@ export const LoginPage = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // ✅ Auto-assign cashier branch when they select their account
+  useEffect(() => {
+    if (selectedRole === "cashier" && selectedUserId) {
+      const cashier = users.find(u => u.id === selectedUserId);
+      if (cashier) {
+        const assignedBranch = CASHIER_BRANCH_MAPPING[cashier.name as keyof typeof CASHIER_BRANCH_MAPPING];
+        if (assignedBranch) {
+          console.log(`[AUTO_BRANCH] Cashier ${cashier.name} assigned to branch: ${assignedBranch}`);
+          setSelectedBranch(assignedBranch);
+        }
+      }
+    }
+  }, [selectedUserId, selectedRole, users]);
+
   // DEBUG
   console.log("LoginPage rendered. Users:", users.length, "currentUser:", currentUser);
 
@@ -277,11 +291,23 @@ export const LoginPage = () => {
             <p className="text-gray-400 text-base">Select your branch, role, and authenticate to continue</p>
           </div>
 
-          {/* Branch Selection */}
-          <div className="mb-8">
-            <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-4 block">Select Branch</label>
-            <BranchSelector selectedBranch={selectedBranch} onSelect={setSelectedBranch} />
-          </div>
+          {/* Branch Selection - ONLY for Admin/Manager (cashiers get auto-assigned) */}
+          {selectedRole !== "cashier" && (
+            <div className="mb-8">
+              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-4 block">Select Branch</label>
+              <BranchSelector selectedBranch={selectedBranch} onSelect={setSelectedBranch} />
+            </div>
+          )}
+
+          {/* Show Placeholder for Cashier Branch (auto-assigned) */}
+          {selectedRole === "cashier" && !selectedUserId && (
+            <div className="mb-8">
+              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-4 block">Your Branch</label>
+              <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700 text-gray-400 text-sm text-center">
+                Select your cashier account to auto-assign your branch
+              </div>
+            </div>
+          )}
 
           {/* Role Selection */}
           <div className="mb-8">
@@ -384,20 +410,21 @@ export const LoginPage = () => {
             </motion.div>
           )}
 
-          {/* Branch Selection - ONLY for Cashiers */}
+          {/* Show Selected Branch for Cashier */}
           {selectedRole === "cashier" && selectedUserId && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6"
+              className="mb-6 p-4 rounded-lg bg-emerald-500/20 border border-emerald-500/50"
             >
-              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-3 block">
-                Select Your Branch
-              </label>
-              <BranchSelector
-                selectedBranch={selectedBranch}
-                onSelect={setSelectedBranch}
-              />
+              <div className="flex gap-3 items-center">
+                <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <Check className="h-3 w-3 text-white" />
+                </div>
+                <div className="text-emerald-300 text-sm font-bold">
+                  ✓ Branch Auto-Assigned: {selectedBranch === "eden-drop-tamasha" ? "Tamasha" : selectedBranch === "eden-drop-reem" ? "Reem" : "LungaLunga"}
+                </div>
+              </div>
             </motion.div>
           )}
 
