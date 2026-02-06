@@ -492,7 +492,24 @@ export const CashierShiftWorkflow = () => {
     try {
       console.log(`[SHIFT_CLOSE] Closing shift ${shiftId}`);
       
-      // Save expenses FIRST before closing shift
+      // Calculate total expenses by payment method (from BOTH closing expenses and mid-shift expenses)
+      const allExpenses = [...closingExpenses, ...midShiftExpenses];
+      const totalCashExpenses = allExpenses
+        .filter((e) => e.payment_method === "cash")
+        .reduce((sum, e) => sum + e.amount, 0);
+      const totalMpesaExpenses = allExpenses
+        .filter((e) => e.payment_method === "mpesa")
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      console.log(`[SHIFT_CLOSE] Total Expenses - Cash: KES ${totalCashExpenses}, M-Pesa: KES ${totalMpesaExpenses}`);
+
+      // Deduct expenses from received amounts to get net closing amounts
+      const netCashForClose = Math.max(0, cashReceived - totalCashExpenses);
+      const netMpesaForClose = Math.max(0, mpesaReceived - totalMpesaExpenses);
+
+      console.log(`[SHIFT_CLOSE] Net Amounts After Expenses - Cash: KES ${netCashForClose}, M-Pesa: KES ${netMpesaForClose}`);
+
+      // Save expenses (both closing and mid-shift) before closing shift
       if (closingExpenses.length > 0) {
         for (const expense of closingExpenses) {
           try {
@@ -511,13 +528,13 @@ export const CashierShiftWorkflow = () => {
         }
       }
       
-      // Then close the shift
+      // Then close the shift with NET amounts (after expenses deducted)
       const data = await api.post(
         `/api/shifts/${shiftId}/close`,
         {
           closing_stock_map: closingStock,
-          cash_received: cashReceived,
-          mpesa_received: mpesaReceived,
+          cash_received: netCashForClose,
+          mpesa_received: netMpesaForClose,
         }
       );
 
@@ -1247,6 +1264,61 @@ export const CashierShiftWorkflow = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Expense Calculation Breakdown */}
+                  {(() => {
+                    const allExpenses = [...closingExpenses, ...midShiftExpenses];
+                    const cashExpenses = allExpenses.filter((e) => e.payment_method === "cash").reduce((sum, e) => sum + e.amount, 0);
+                    const mpesaExpenses = allExpenses.filter((e) => e.payment_method === "mpesa").reduce((sum, e) => sum + e.amount, 0);
+                    const netCash = Math.max(0, cashReceived - cashExpenses);
+                    const netMpesa = Math.max(0, mpesaReceived - mpesaExpenses);
+
+                    return (
+                      allExpenses.length > 0 && (
+                        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 space-y-3">
+                          <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest">💰 Expected vs Expenses</h4>
+                          
+                          {cashExpenses > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-600">Cash Received:</span>
+                                <span className="font-bold text-slate-900">KES {cashReceived.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-red-600 font-bold">- Cash Expenses:</span>
+                                <span className="font-black text-red-600">- KES {cashExpenses.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm border-t-2 border-blue-200 pt-2">
+                                <span className="font-bold text-slate-900">✓ Net Cash:</span>
+                                <span className="font-black text-green-600 text-lg">KES {netCash.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {mpesaExpenses > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-600">M-Pesa Received:</span>
+                                <span className="font-bold text-slate-900">KES {mpesaReceived.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-red-600 font-bold">- M-Pesa Expenses:</span>
+                                <span className="font-black text-red-600">- KES {mpesaExpenses.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm border-t-2 border-blue-200 pt-2">
+                                <span className="font-bold text-slate-900">✓ Net M-Pesa:</span>
+                                <span className="font-black text-green-600 text-lg">KES {netMpesa.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-white rounded p-2 mt-2 text-xs text-slate-600 font-bold border border-blue-200">
+                            📊 These net amounts will be submitted as your closing balance
+                          </div>
+                        </div>
+                      )
+                    );
+                  })()}
 
                   {/* Expenses Section (Below M-Pesa) */}
                   <div className="border-t border-slate-100 pt-4 space-y-4">
