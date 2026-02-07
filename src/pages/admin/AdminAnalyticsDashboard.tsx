@@ -110,10 +110,18 @@ export const AdminAnalyticsDashboard = () => {
     setError(null);
 
     try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      console.log('[GROWTH] API_URL:', API_URL);
+      console.log('[GROWTH] Fetching growth data for range:', range);
+      console.log('[GROWTH] Full URL will be:', `${API_URL}/api/admin/analytics/growth?range=${range}`);
+      
       const [growthResponse, summaryResponse] = await Promise.all([
         api.get(`/api/admin/analytics/growth`, { range }),
         api.get(`/api/admin/analytics/growth/summary`, { range }),
       ]);
+
+      console.log('[GROWTH] Growth response:', growthResponse);
+      console.log('[GROWTH] Summary response:', summaryResponse);
 
       setGrowthData(growthResponse as GrowthResponse);
       setSummary(summaryResponse as GrowthSummary);
@@ -121,7 +129,8 @@ export const AdminAnalyticsDashboard = () => {
       setLastUpdated(new Date());
     } catch (err) {
       console.error('[GROWTH] Error fetching growth data:', err);
-      setError((err as Error).message);
+      const errorMsg = (err as Error).message || 'Failed to load growth data';
+      setError(`${errorMsg}\n\nPlease ensure the backend server is running on port 4000.`);
     } finally {
       setLoading(false);
     }
@@ -302,8 +311,23 @@ export const AdminAnalyticsDashboard = () => {
                 {loading ? (
                   <div className="h-full rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 animate-pulse" />
                 ) : error ? (
-                  <div className="h-full rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 text-sm">
-                    {error}
+                  <div className="h-full rounded-2xl bg-rose-50 border border-rose-100 flex flex-col items-center justify-center text-rose-500 text-sm p-6">
+                    <p className="font-bold mb-2">Error Loading Data</p>
+                    <p className="text-center">{error}</p>
+                    <button
+                      onClick={fetchGrowth}
+                      className="mt-4 px-4 py-2 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : chartSeries.length === 0 ? (
+                  <div className="h-full rounded-2xl bg-blue-50 border border-blue-100 flex flex-col items-center justify-center text-blue-600 text-sm p-6">
+                    <Activity className="h-12 w-12 mb-3 opacity-50" />
+                    <p className="font-bold mb-1">No Data Available</p>
+                    <p className="text-center text-xs text-blue-500">
+                      No transactions found for the selected period. Start recording sales to see growth trends.
+                    </p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
