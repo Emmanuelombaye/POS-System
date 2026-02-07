@@ -10,7 +10,7 @@
  */
 
 // Version file that gets updated during deployment
-export const APP_VERSION = "2.0.1";
+export const APP_VERSION = "2.0.2";
 export const BUILD_DATE = "2026-02-06";
 
 // Check for updates on app load
@@ -57,7 +57,7 @@ export async function registerServiceWorkerWithUpdates() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("/service-worker.js", {
+    const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${APP_VERSION}`, {
       scope: "/",
       type: "module",
     });

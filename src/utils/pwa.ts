@@ -3,10 +3,12 @@
  * Handles offline functionality, caching, and app installation
  */
 
+import { APP_VERSION } from "@/lib/updateManager";
+
 export const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js', {
+      const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${APP_VERSION}`, {
         scope: '/',
         updateViaCache: 'none', // Always check for SW updates
       });

@@ -8,7 +8,21 @@
  */
 
 // Version-based cache names (updates automatically)
-const CACHE_VERSION = 'v' + new Date().toISOString().split('T')[0]; // Format: v2026-02-05
+const getCacheVersion = () => {
+  try {
+    const swUrl = new URL(self.location.href);
+    const versionParam = swUrl.searchParams.get('v');
+    if (versionParam) {
+      return `v${versionParam}`;
+    }
+  } catch (error) {
+    console.warn('[Service Worker] Failed to read version param:', error);
+  }
+
+  return 'v' + new Date().toISOString().split('T')[0]; // Format: v2026-02-05
+};
+
+const CACHE_VERSION = getCacheVersion();
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
