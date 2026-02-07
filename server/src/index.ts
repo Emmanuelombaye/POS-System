@@ -230,7 +230,8 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
     if (!user) {
       console.log(`[LOGIN] User not found in database: ${userId}`);
       loginAttemptMap.set(userId, loginAttempts + 1);
-      return res.status(401).json({ error: "User not found." });
+      // Return generic error - don't reveal user doesn't exist
+      return res.status(401).json({ error: "Invalid credentials. Please try again." });
     }
 
     console.log(`[LOGIN] ✅ User found:`, { id: user.id, name: user.name, role: user.role });
@@ -265,7 +266,8 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
     if (!passwordValid) {
       console.log(`[LOGIN] Invalid password for ${userId}`);
       loginAttemptMap.set(userId, loginAttempts + 1);
-      return res.status(401).json({ error: "Invalid credentials." });
+      // Return generic error - don't reveal password was wrong vs user not found
+      return res.status(401).json({ error: "Invalid credentials. Please try again." });
     }
 
     // Reset login attempts on success

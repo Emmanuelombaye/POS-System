@@ -149,7 +149,7 @@ export const LoginPage = () => {
     }
     
     if (password !== correctPassword) {
-      setError(`❌ Invalid password. Password is: ${correctPassword}`);
+      setError(`❌ Invalid credentials. Please check your role and password.`);
       setPassword("");
       return;
     }
