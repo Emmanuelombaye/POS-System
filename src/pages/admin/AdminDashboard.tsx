@@ -16,50 +16,53 @@ export const AdminDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Tab Navigation */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-0">
-          <div className="flex gap-0">
+        <div className="max-w-[1920px] mx-auto">
+          <div className="flex gap-0 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-4 font-bold text-xs md:text-sm border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === "dashboard"
                   ? "border-brand-burgundy text-brand-burgundy bg-gradient-to-b from-brand-burgundy/5 to-transparent"
                   : "border-transparent text-gray-600 hover:text-gray-900"
               }`}
             >
-              <BarChart3 className="h-5 w-5" />
-              DASHBOARD
+              <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">DASHBOARD</span>
+              <span className="sm:hidden">DASH</span>
             </button>
             <button
               onClick={() => setActiveTab("sales")}
-              className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-4 font-bold text-xs md:text-sm border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === "sales"
                   ? "border-brand-burgundy text-brand-burgundy bg-gradient-to-b from-brand-burgundy/5 to-transparent"
                   : "border-transparent text-gray-600 hover:text-gray-900"
               }`}
             >
-              <ShoppingCart className="h-5 w-5" />
-              SALES & TRANSACTIONS
+              <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden md:inline">SALES & TRANSACTIONS</span>
+              <span className="md:hidden">SALES</span>
             </button>
             <button
               onClick={() => setActiveTab("pro-analytics")}
-              className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-4 font-bold text-xs md:text-sm border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === "pro-analytics"
                   ? "border-brand-burgundy text-brand-burgundy bg-gradient-to-b from-brand-burgundy/5 to-transparent"
                   : "border-transparent text-gray-600 hover:text-gray-900"
               }`}
             >
-              <Sparkles className="h-5 w-5" />
-              PRO ANALYTICS
+              <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden lg:inline">PRO ANALYTICS</span>
+              <span className="lg:hidden">ANALYTICS</span>
             </button>
             <button
               onClick={() => setActiveTab("expenses")}
-              className={`flex items-center gap-2 px-6 py-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-4 font-bold text-xs md:text-sm border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === "expenses"
                   ? "border-brand-burgundy text-brand-burgundy bg-gradient-to-b from-brand-burgundy/5 to-transparent"
                   : "border-transparent text-gray-600 hover:text-gray-900"
               }`}
             >
-              <Wallet className="h-5 w-5" />
+              <Wallet className="h-4 w-4 md:h-5 md:w-5" />
               Expenses
             </button>
           </div>
