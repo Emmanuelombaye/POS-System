@@ -309,6 +309,27 @@ export const LoginPage = () => {
             </div>
           )}
 
+          {/* Show ONLY Branch auto-assignment for selected cashier - NO separate selector cards */}
+          {selectedRole === "cashier" && selectedUserId && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6"
+            >
+              <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-3 block">
+                ✓ Your Assigned Branch
+              </label>
+              <div className="p-4 rounded-lg bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center gap-3">
+                <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="h-4 w-4 text-white" />
+                </div>
+                <div className="text-emerald-300 font-bold text-sm">
+                  {selectedBranch === "eden-drop-tamasha" ? "Edendrop001 Tamasha" : selectedBranch === "eden-drop-reem" ? "Edendrop001 Reem" : "Edendrop001 LungaLunga"}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Role Selection */}
           <div className="mb-8">
             <label className="text-xs font-black uppercase tracking-widest text-gray-300 mb-4 block">User Role</label>
@@ -405,24 +426,6 @@ export const LoginPage = () => {
                 <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="text-amber-300 text-sm font-medium">
                   No cashiers assigned to this branch. Please select a different branch.
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Show Selected Branch for Cashier */}
-          {selectedRole === "cashier" && selectedUserId && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 rounded-lg bg-emerald-500/20 border border-emerald-500/50"
-            >
-              <div className="flex gap-3 items-center">
-                <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                  <Check className="h-3 w-3 text-white" />
-                </div>
-                <div className="text-emerald-300 text-sm font-bold">
-                  ✓ Branch Auto-Assigned: {selectedBranch === "eden-drop-tamasha" ? "Tamasha" : selectedBranch === "eden-drop-reem" ? "Reem" : "LungaLunga"}
                 </div>
               </div>
             </motion.div>
