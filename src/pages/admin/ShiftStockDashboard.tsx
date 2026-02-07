@@ -55,6 +55,13 @@ interface BranchSalesData {
   sales: number;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+  location: string;
+  status: string;
+}
+
 export const ShiftStockDashboard = () => {
   const { token, users } = useAppStore();
   const [activeShifts, setActiveShifts] = useState<ActiveShiftData[]>([]);
@@ -64,6 +71,7 @@ export const ShiftStockDashboard = () => {
   const [selectedCashierId, setSelectedCashierId] = useState<string>("all");
   const [weeklySalesData, setWeeklySalesData] = useState<WeeklySalesData[]>([]);
   const [branchSalesData, setBranchSalesData] = useState<BranchSalesData[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   const fetchActiveShiftsData = async () => {
     try {
@@ -155,6 +163,15 @@ export const ShiftStockDashboard = () => {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const branchesData = await api.get("/api/branches");
+      setBranches(branchesData || []);
+    } catch (error) {
+      console.error("[DASHBOARD] Error fetching branches:", error);
+    }
+  };
+
   const fetchAnalyticsData = async () => {
     try {
       // Fetch transactions for the last 7 days
@@ -214,12 +231,24 @@ export const ShiftStockDashboard = () => {
       // Get all shifts to map transactions to branches
       const allShifts = await api.get("/api/shifts");
       
-      // Aggregate by branch
+      // Create branch name lookup map
+      const branchMap: { [key: string]: string } = {};
+      branches.forEach(b => {
+        branchMap[b.id] = b.name;
+      });
+      
+      // Aggregate by branch using real branch names
       const salesByBranch: { [key: string]: number } = {};
+      
+      // Initialize all branches with 0 sales
+      branches.forEach(branch => {
+        salesByBranch[branch.name] = 0;
+      });
       
       todayTransactions.forEach((t: any) => {
         const shift = allShifts.find((s: any) => s.id === t.shift_id);
-        const branchName = shift?.branch_name || shift?.branch_id || 'Main Branch';
+        const branchId = shift?.branch_id || 'branch1';
+        const branchName = branchMap[branchId] || branchId;
         salesByBranch[branchName] = (salesByBranch[branchName] || 0) + Number(t.total || 0);
       });
 
@@ -239,18 +268,26 @@ export const ShiftStockDashboard = () => {
   };
 
   useEffect(() => {
-    fetchActiveShiftsData();
-    fetchAnalyticsData();
-    const interval = setInterval(() => {
+    fetchBranches();
+  }, [token]);
+
+  useEffect(() => {
+    if (branches.length > 0) {
       fetchActiveShiftsData();
       fetchAnalyticsData();
-    }, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, [token, users]);
+      const interval = setInterval(() => {
+        fetchActiveShiftsData();
+        fetchAnalyticsData();
+      }, 5000); // Poll every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [token, users, branches]);
 
   // Calculate dashboard metrics
   const totalSales = activeShifts.reduce((sum, s) => sum + (s.cash_expected || 0) + (s.mpesa_expected || 0), 0);
-  const activeBranches = new Set(activeShifts.map(s => s.shift.branch_id || 'main')).size;
+  const activeBranchIds = new Set(activeShifts.map(s => s.shift.branch_id || 'branch1'));
+  const activeBranches = activeBranchIds.size;
+  const totalBranches = branches.length || 4;
   const totalStaff = activeShifts.length;
   const issuesCount = activeShifts.filter((s) => s.has_major_variance || s.has_payment_variance).length;
 
@@ -296,8 +333,8 @@ export const ShiftStockDashboard = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-bold uppercase text-gray-500 tracking-widest">Active Branches</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">{activeBranches}/4</p>
-                <p className="text-sm text-gray-600 mt-3">All systems operational</p>
+                <p className="text-3xl font-black text-gray-900 mt-2">{activeBranches}/{totalBranches}</p>
+                <p className="text-sm text-gray-600 mt-3">{activeBranches === totalBranches ? 'All systems operational' : `${activeBranches} of ${totalBranches} active`}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-blue-600" />

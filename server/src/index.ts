@@ -444,6 +444,22 @@ app.get("/api/users", async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/branches - Fetch all branches
+app.get("/api/branches", async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from("branches")
+      .select("id, name, location, status")
+      .eq("status", "active")
+      .order("name", { ascending: true });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 app.post("/api/users", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   try {
     const { password, ...userData } = req.body;
