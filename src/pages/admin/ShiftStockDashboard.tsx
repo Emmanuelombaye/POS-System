@@ -72,6 +72,9 @@ export const ShiftStockDashboard = () => {
   const [weeklySalesData, setWeeklySalesData] = useState<WeeklySalesData[]>([]);
   const [branchSalesData, setBranchSalesData] = useState<BranchSalesData[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [todayTotalSales, setTodayTotalSales] = useState<number>(0);
+  const [yesterdayTotalSales, setYesterdayTotalSales] = useState<number>(0);
+  const [salesTrend, setSalesTrend] = useState<{ percentage: number; isPositive: boolean }>({ percentage: 0, isPositive: true });
 
   const fetchActiveShiftsData = async () => {
     try {
@@ -228,6 +231,39 @@ export const ShiftStockDashboard = () => {
         return txDate >= todayStart;
       });
 
+      // Calculate today's total sales
+      const todaySales = todayTransactions.reduce((sum: number, t: any) => sum + Number(t.total || 0), 0);
+      setTodayTotalSales(todaySales);
+
+      // Calculate yesterday's total sales
+      const yesterdayStart = new Date();
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      yesterdayStart.setHours(0, 0, 0, 0);
+      const yesterdayEnd = new Date();
+      yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+
+      const yesterdayTransactions = allTransactions.filter((t: any) => {
+        const txDate = new Date(t.created_at);
+        return txDate >= yesterdayStart && txDate <= yesterdayEnd;
+      });
+
+      const yesterdaySales = yesterdayTransactions.reduce((sum: number, t: any) => sum + Number(t.total || 0), 0);
+      setYesterdayTotalSales(yesterdaySales);
+
+      // Calculate trend percentage
+      if (yesterdaySales > 0) {
+        const percentageChange = ((todaySales - yesterdaySales) / yesterdaySales) * 100;
+        setSalesTrend({ 
+          percentage: Math.abs(percentageChange), 
+          isPositive: percentageChange >= 0 
+        });
+      } else if (todaySales > 0) {
+        setSalesTrend({ percentage: 100, isPositive: true });
+      } else {
+        setSalesTrend({ percentage: 0, isPositive: true });
+      }
+
       // Get all shifts to map transactions to branches
       const allShifts = await api.get("/api/shifts");
       
@@ -284,11 +320,10 @@ export const ShiftStockDashboard = () => {
   }, [token, users, branches]);
 
   // Calculate dashboard metrics
-  const totalSales = activeShifts.reduce((sum, s) => sum + (s.cash_expected || 0) + (s.mpesa_expected || 0), 0);
   const activeBranchIds = new Set(activeShifts.map(s => s.shift.branch_id || 'branch1'));
   const activeBranches = activeBranchIds.size;
   const totalBranches = branches.length || 4;
-  const totalStaff = activeShifts.length;
+  const totalStaff = users.filter(u => u.role === 'cashier').length;
   const issuesCount = activeShifts.filter((s) => s.has_major_variance || s.has_payment_variance).length;
 
   return (
@@ -314,11 +349,30 @@ export const ShiftStockDashboard = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-bold uppercase text-gray-500 tracking-widest">Total Sales Today</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">KES {(totalSales / 1000).toFixed(0)}K</p>
-                <div className="flex items-center gap-1 mt-3">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm font-bold text-emerald-600">+12.5% vs yesterday</span>
-                </div>
+                <p className="text-3xl font-black text-gray-900 mt-2">KES {(todayTotalSales / 1000).toFixed(1)}K</p>
+                {yesterdayTotalSales > 0 && (
+                  <div className="flex items-center gap-1 mt-3">
+                    {salesTrend.isPositive ? (
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-bold ${
+                      salesTrend.isPositive ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {salesTrend.isPositive ? '+' : '-'}{salesTrend.percentage.toFixed(1)}% vs yesterday
+                    </span>
+                  </div>
+                )}
+                {yesterdayTotalSales === 0 && todayTotalSales > 0 && (
+                  <div className="flex items-center gap-1 mt-3">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm font-bold text-emerald-600">First sales of the period</span>
+                  </div>
+                )}
+                {todayTotalSales === 0 && (
+                  <p className="text-sm text-gray-500 mt-3">No sales recorded yet</p>
+                )}
               </div>
               <div className="p-3 bg-emerald-100 rounded-lg">
                 <DollarSign className="h-6 w-6 text-emerald-600" />
