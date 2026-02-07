@@ -45,6 +45,16 @@ interface ActiveShiftData {
   has_payment_variance?: boolean;
 }
 
+interface WeeklySalesData {
+  day: string;
+  sales: number;
+}
+
+interface BranchSalesData {
+  branch: string;
+  sales: number;
+}
+
 export const ShiftStockDashboard = () => {
   const { token, users } = useAppStore();
   const [activeShifts, setActiveShifts] = useState<ActiveShiftData[]>([]);
@@ -52,6 +62,8 @@ export const ShiftStockDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>("");
   const [selectedCashierId, setSelectedCashierId] = useState<string>("all");
+  const [weeklySalesData, setWeeklySalesData] = useState<WeeklySalesData[]>([]);
+  const [branchSalesData, setBranchSalesData] = useState<BranchSalesData[]>([]);
 
   const fetchActiveShiftsData = async () => {
     try {
@@ -143,9 +155,96 @@ export const ShiftStockDashboard = () => {
     }
   };
 
+  const fetchAnalyticsData = async () => {
+    try {
+      // Fetch transactions for the last 7 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6); // Last 7 days including today
+
+      const allTransactions = await api.get("/api/transactions");
+      
+      // Filter transactions within date range
+      const weekTransactions = allTransactions.filter((t: any) => {
+        const txDate = new Date(t.created_at);
+        return txDate >= startDate && txDate <= endDate;
+      });
+
+      // Aggregate by day for weekly sales
+      const salesByDay: { [key: string]: number } = {};
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      // Initialize all days with 0
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dayName = dayNames[date.getDay()];
+        salesByDay[dayName] = 0;
+      }
+
+      // Sum sales for each day
+      weekTransactions.forEach((t: any) => {
+        const txDate = new Date(t.created_at);
+        const dayName = dayNames[txDate.getDay()];
+        salesByDay[dayName] = (salesByDay[dayName] || 0) + Number(t.total || 0);
+      });
+
+      // Convert to array format for chart
+      const weeklyData: WeeklySalesData[] = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dayName = dayNames[date.getDay()];
+        weeklyData.push({
+          day: dayName,
+          sales: Math.round(salesByDay[dayName] || 0)
+        });
+      }
+      setWeeklySalesData(weeklyData);
+
+      // Fetch today's transactions and aggregate by branch
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      const todayTransactions = allTransactions.filter((t: any) => {
+        const txDate = new Date(t.created_at);
+        return txDate >= todayStart;
+      });
+
+      // Get all shifts to map transactions to branches
+      const allShifts = await api.get("/api/shifts");
+      
+      // Aggregate by branch
+      const salesByBranch: { [key: string]: number } = {};
+      
+      todayTransactions.forEach((t: any) => {
+        const shift = allShifts.find((s: any) => s.id === t.shift_id);
+        const branchName = shift?.branch_name || shift?.branch_id || 'Main Branch';
+        salesByBranch[branchName] = (salesByBranch[branchName] || 0) + Number(t.total || 0);
+      });
+
+      // Convert to array format for chart
+      const branchData: BranchSalesData[] = Object.entries(salesByBranch).map(([branch, sales]) => ({
+        branch,
+        sales: Math.round(sales)
+      }));
+
+      // Sort by sales descending
+      branchData.sort((a, b) => b.sales - a.sales);
+      
+      setBranchSalesData(branchData);
+    } catch (error) {
+      console.error("[DASHBOARD] Error fetching analytics data:", error);
+    }
+  };
+
   useEffect(() => {
     fetchActiveShiftsData();
-    const interval = setInterval(fetchActiveShiftsData, 5000); // Poll every 5 seconds
+    fetchAnalyticsData();
+    const interval = setInterval(() => {
+      fetchActiveShiftsData();
+      fetchAnalyticsData();
+    }, 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
   }, [token, users]);
 
@@ -154,24 +253,6 @@ export const ShiftStockDashboard = () => {
   const activeBranches = new Set(activeShifts.map(s => s.shift.branch_id || 'main')).size;
   const totalStaff = activeShifts.length;
   const issuesCount = activeShifts.filter((s) => s.has_major_variance || s.has_payment_variance).length;
-  
-  // Sample data for charts (would come from backend in production)
-  const weeklySalesData = [
-    { day: 'Mon', sales: 45000 },
-    { day: 'Tue', sales: 52000 },
-    { day: 'Wed', sales: 48000 },
-    { day: 'Thu', sales: 61000 },
-    { day: 'Fri', sales: 75000 },
-    { day: 'Sat', sales: 89000 },
-    { day: 'Sun', sales: 72000 }
-  ];
-
-  const branchSalesData = [
-    { branch: 'Main', sales: 137110 },
-    { branch: 'Branch 2', sales: 92300 },
-    { branch: 'Branch 3', sales: 68500 },
-    { branch: 'Branch 4', sales: 0 }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -266,28 +347,38 @@ export const ShiftStockDashboard = () => {
             <CardTitle className="text-lg font-bold">Weekly Sales Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={weeklySalesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="day" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  dot={{ fill: '#10b981', r: 5 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {weeklySalesData.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <Loader className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p>Loading sales data...</p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={weeklySalesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="day" stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#ffffff', 
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: any) => [`KES ${Number(value).toLocaleString()}`, 'Sales']}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10b981', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -297,25 +388,44 @@ export const ShiftStockDashboard = () => {
             <CardTitle className="text-lg font-bold">Branch Sales Today</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={branchSalesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="branch" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar 
-                  dataKey="sales" 
-                  fill="#3b82f6" 
-                  radius={[8, 8, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {branchSalesData.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  {loading ? (
+                    <>
+                      <Loader className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      <p>Loading branch data...</p>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p>No sales data for today</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={branchSalesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="branch" stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#ffffff', 
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: any) => [`KES ${Number(value).toLocaleString()}`, 'Sales']}
+                  />
+                  <Bar 
+                    dataKey="sales" 
+                    fill="#3b82f6" 
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
