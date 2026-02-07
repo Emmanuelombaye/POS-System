@@ -58,6 +58,84 @@ const JWT_SECRET = process.env.JWT_SECRET || "eden-drop-001-secret-key-2026";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const ANALYTICS_TIMEZONE = "Africa/Nairobi";
+
+const formatDateInTZ = (date: Date, timeZone: string) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+const getWeekStart = (dateStr: string) => {
+  const date = new Date(`${dateStr}T00:00:00+03:00`);
+  const day = date.getUTCDay();
+  const diff = (day + 6) % 7; // Monday start
+  date.setUTCDate(date.getUTCDate() - diff);
+  return date.toISOString().split("T")[0];
+};
+
+const getMonthStart = (dateStr: string) => {
+  const date = new Date(`${dateStr}T00:00:00+03:00`);
+  date.setUTCDate(1);
+  return date.toISOString().split("T")[0];
+};
+
+const upsertSalesSummary = async (
+  table: "sales_daily" | "sales_weekly" | "sales_monthly",
+  key: string,
+  keyValue: string,
+  amount: number
+) => {
+  if (!Number.isFinite(amount)) return;
+
+  const { data, error } = await supabase.from(table).select("*").eq(key, keyValue).single();
+  if (error && error.code === "42P01") {
+    console.warn(`[ANALYTICS] Missing table ${table}. Run migration 002_create_sales_summaries.sql`);
+    return;
+  }
+
+  const currentTotal = Number(data?.total_sales || 0);
+  const currentCount = Number(data?.transaction_count || 0);
+  const totalSales = currentTotal + amount;
+  const transactionCount = currentCount + 1;
+  const avgBasketValue = transactionCount > 0 ? totalSales / transactionCount : 0;
+
+  const payload: Record<string, any> = {
+    [key]: keyValue,
+    total_sales: totalSales,
+    transaction_count: transactionCount,
+    avg_basket_value: avgBasketValue,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: upsertError } = await supabase
+    .from(table)
+    .upsert(payload, { onConflict: key });
+
+  if (upsertError) {
+    console.error(`[ANALYTICS] Upsert failed for ${table}:`, upsertError);
+  }
+};
+
+const updateSalesSummaries = async (transaction: any) => {
+  const amount = Number(transaction?.total ?? transaction?.amount ?? 0);
+  if (!Number.isFinite(amount) || amount === 0) return;
+
+  const createdAt = transaction?.created_at ? new Date(transaction.created_at) : new Date();
+  const dateStr = formatDateInTZ(createdAt, ANALYTICS_TIMEZONE);
+  const weekStart = getWeekStart(dateStr);
+  const monthStart = getMonthStart(dateStr);
+
+  await Promise.all([
+    upsertSalesSummary("sales_daily", "date", dateStr, amount),
+    upsertSalesSummary("sales_weekly", "week_start", weekStart, amount),
+    upsertSalesSummary("sales_monthly", "month_start", monthStart, amount),
+  ]);
+};
+
 // Migration: Ensure shift_stock_entries table exists
 const ensureShiftStockEntriesTable = async () => {
   try {
@@ -514,6 +592,10 @@ app.post("/api/transactions", authenticateToken, async (req: Request, res: Respo
           await supabase.from("products").update({ stock_kg: updatedStock }).eq("id", item.productId);
         }
       }
+    }
+
+    if (tx) {
+      await updateSalesSummaries(tx);
     }
 
     res.status(201).json(tx);

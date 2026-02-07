@@ -24,6 +24,351 @@ const supabaseUrl = process.env.SUPABASE_URL || "https://glskbegsmdrylrhczpyy.su
 const supabaseKey = process.env.SUPABASE_KEY || "sb_publishable_waCCK6KyQPWQlCQHpzVucQ_5ytpKQcQ";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const ANALYTICS_TIMEZONE = "Africa/Nairobi";
+
+const formatDateInTZ = (date: Date, timeZone: string) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+const getWeekStart = (dateStr: string) => {
+  const date = new Date(`${dateStr}T00:00:00+03:00`);
+  const day = date.getUTCDay();
+  const diff = (day + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - diff);
+  return date.toISOString().split("T")[0];
+};
+
+const getMonthStart = (dateStr: string) => {
+  const date = new Date(`${dateStr}T00:00:00+03:00`);
+  date.setUTCDate(1);
+  return date.toISOString().split("T")[0];
+};
+
+const addDays = (dateStr: string, days: number) => {
+  const date = new Date(`${dateStr}T00:00:00+03:00`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().split("T")[0];
+};
+
+const buildDateSeries = (start: string, end: string) => {
+  const series: string[] = [];
+  let cursor = start;
+  while (cursor <= end) {
+    series.push(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return series;
+};
+
+const buildWeekSeries = (start: string, end: string) => {
+  const series: string[] = [];
+  let cursor = getWeekStart(start);
+  while (cursor <= end) {
+    series.push(cursor);
+    cursor = addDays(cursor, 7);
+  }
+  return series;
+};
+
+const buildMonthSeries = (start: string, end: string) => {
+  const series: string[] = [];
+  const startDate = new Date(`${getMonthStart(start)}T00:00:00+03:00`);
+  const endDate = new Date(`${getMonthStart(end)}T00:00:00+03:00`);
+  const cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    series.push(cursor.toISOString().split("T")[0]);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return series;
+};
+
+const fetchTransactionsBetween = async (start: string, end: string) => {
+  const startDateTime = `${start}T00:00:00`;
+  const endDateTime = `${end}T23:59:59`;
+
+  let txResponse: any = await supabase
+    .from("transactions")
+    .select("total, created_at, transaction_date")
+    .gte("created_at", startDateTime)
+    .lte("created_at", endDateTime);
+
+  if (txResponse.error && txResponse.error.code === "42703") {
+    txResponse = await supabase
+      .from("transactions")
+      .select("total, transaction_date")
+      .gte("transaction_date", startDateTime)
+      .lte("transaction_date", endDateTime);
+  }
+
+  if (txResponse.error) throw txResponse.error;
+  return txResponse.data || [];
+};
+
+const buildHourlySeries = (data: any[]) => {
+  const hours = Array.from({ length: 24 }).map((_, i) => ({
+    label: `${String(i).padStart(2, "0")}:00`,
+    value: 0,
+  }));
+
+  for (const row of data) {
+    const ts = row.created_at || row.transaction_date;
+    if (!ts) continue;
+    const date = new Date(ts);
+    const hour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: ANALYTICS_TIMEZONE,
+        hour: "2-digit",
+        hour12: false,
+      }).format(date)
+    );
+    if (Number.isFinite(hour) && hours[hour]) {
+      hours[hour].value += Number(row.total || 0);
+    }
+  }
+
+  return hours;
+};
+
+const buildSummarySeries = (
+  seriesKeys: string[],
+  data: any[],
+  key: string,
+  valueKey: string
+) => {
+  const map = new Map<string, number>();
+  data.forEach((row) => {
+    map.set(row[key], Number(row[valueKey] || 0));
+  });
+
+  return seriesKeys.map((entry) => ({
+    label: entry,
+    value: map.get(entry) || 0,
+  }));
+};
+
+const getRangeConfig = (range: string) => {
+  const today = formatDateInTZ(new Date(), ANALYTICS_TIMEZONE);
+
+  switch (range) {
+    case "1D": {
+      const previous = addDays(today, -1);
+      return {
+        bucket: "hour",
+        currentStart: today,
+        currentEnd: today,
+        previousStart: previous,
+        previousEnd: previous,
+      };
+    }
+    case "7D": {
+      const currentStart = addDays(today, -6);
+      const previousEnd = addDays(currentStart, -1);
+      const previousStart = addDays(previousEnd, -6);
+      return { bucket: "day", currentStart, currentEnd: today, previousStart, previousEnd };
+    }
+    case "1M": {
+      const currentStart = addDays(today, -29);
+      const previousEnd = addDays(currentStart, -1);
+      const previousStart = addDays(previousEnd, -29);
+      return { bucket: "day", currentStart, currentEnd: today, previousStart, previousEnd };
+    }
+    case "3M": {
+      const currentStart = addDays(today, -83);
+      const previousEnd = addDays(currentStart, -1);
+      const previousStart = addDays(previousEnd, -83);
+      return { bucket: "week", currentStart, currentEnd: today, previousStart, previousEnd };
+    }
+    case "6M": {
+      const currentStart = addDays(today, -181);
+      const previousEnd = addDays(currentStart, -1);
+      const previousStart = addDays(previousEnd, -181);
+      return { bucket: "week", currentStart, currentEnd: today, previousStart, previousEnd };
+    }
+    case "1Y": {
+      const currentStart = addDays(today, -364);
+      const previousEnd = addDays(currentStart, -1);
+      const previousStart = addDays(previousEnd, -364);
+      return { bucket: "month", currentStart, currentEnd: today, previousStart, previousEnd };
+    }
+    default:
+      return getRangeConfig("7D");
+  }
+};
+
+const computeTrendLabel = (values: number[]) => {
+  if (values.length < 2) return "Stable";
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+
+  values.forEach((value, index) => {
+    sumX += index;
+    sumY += value;
+    sumXY += index * value;
+    sumX2 += index * index;
+  });
+
+  const n = values.length;
+  const denominator = n * sumX2 - sumX * sumX;
+  const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+  const avg = sumY / n;
+  const threshold = Math.max(avg * 0.02, 1);
+
+  if (slope > threshold) return "Growing";
+  if (slope < -threshold) return "Declining";
+  return "Stable";
+};
+
+const getGrowthSeries = async (range: string) => {
+  const { bucket, currentStart, currentEnd, previousStart, previousEnd } = getRangeConfig(range);
+
+  if (bucket === "hour") {
+    const currentTx = await fetchTransactionsBetween(currentStart, currentEnd);
+    const previousTx = await fetchTransactionsBetween(previousStart, previousEnd);
+    const current = buildHourlySeries(currentTx);
+    const previous = buildHourlySeries(previousTx);
+    return { range, bucket, current, previous };
+  }
+
+  if (bucket === "day") {
+    const series = buildDateSeries(currentStart, currentEnd);
+    const previousSeries = buildDateSeries(previousStart, previousEnd);
+
+    let currentRows = await supabase
+      .from("sales_daily")
+      .select("date, total_sales")
+      .gte("date", currentStart)
+      .lte("date", currentEnd)
+      .order("date", { ascending: true });
+
+    if (currentRows.error && currentRows.error.code === "42P01") {
+      const tx = await fetchTransactionsBetween(currentStart, currentEnd);
+      const grouped: Record<string, number> = {};
+      tx.forEach((row: any) => {
+        const key = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+        grouped[key] = (grouped[key] || 0) + Number(row.total || 0);
+      });
+      currentRows = { data: Object.entries(grouped).map(([date, total_sales]) => ({ date, total_sales })) } as any;
+    }
+
+    let previousRows = await supabase
+      .from("sales_daily")
+      .select("date, total_sales")
+      .gte("date", previousStart)
+      .lte("date", previousEnd)
+      .order("date", { ascending: true });
+
+    if (previousRows.error && previousRows.error.code === "42P01") {
+      const tx = await fetchTransactionsBetween(previousStart, previousEnd);
+      const grouped: Record<string, number> = {};
+      tx.forEach((row: any) => {
+        const key = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+        grouped[key] = (grouped[key] || 0) + Number(row.total || 0);
+      });
+      previousRows = { data: Object.entries(grouped).map(([date, total_sales]) => ({ date, total_sales })) } as any;
+    }
+
+    const current = buildSummarySeries(series, currentRows.data || [], "date", "total_sales");
+    const previous = buildSummarySeries(previousSeries, previousRows.data || [], "date", "total_sales");
+    return { range, bucket, current, previous };
+  }
+
+  if (bucket === "week") {
+    const series = buildWeekSeries(currentStart, currentEnd);
+    const previousSeries = buildWeekSeries(previousStart, previousEnd);
+
+    let currentRows = await supabase
+      .from("sales_weekly")
+      .select("week_start, total_sales")
+      .gte("week_start", series[0])
+      .lte("week_start", series[series.length - 1])
+      .order("week_start", { ascending: true });
+
+    if (currentRows.error && currentRows.error.code === "42P01") {
+      const tx = await fetchTransactionsBetween(currentStart, currentEnd);
+      const grouped: Record<string, number> = {};
+      tx.forEach((row: any) => {
+        const dateKey = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+        const weekKey = getWeekStart(dateKey);
+        grouped[weekKey] = (grouped[weekKey] || 0) + Number(row.total || 0);
+      });
+      currentRows = { data: Object.entries(grouped).map(([week_start, total_sales]) => ({ week_start, total_sales })) } as any;
+    }
+
+    let previousRows = await supabase
+      .from("sales_weekly")
+      .select("week_start, total_sales")
+      .gte("week_start", previousSeries[0])
+      .lte("week_start", previousSeries[previousSeries.length - 1])
+      .order("week_start", { ascending: true });
+
+    if (previousRows.error && previousRows.error.code === "42P01") {
+      const tx = await fetchTransactionsBetween(previousStart, previousEnd);
+      const grouped: Record<string, number> = {};
+      tx.forEach((row: any) => {
+        const dateKey = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+        const weekKey = getWeekStart(dateKey);
+        grouped[weekKey] = (grouped[weekKey] || 0) + Number(row.total || 0);
+      });
+      previousRows = { data: Object.entries(grouped).map(([week_start, total_sales]) => ({ week_start, total_sales })) } as any;
+    }
+
+    const current = buildSummarySeries(series, currentRows.data || [], "week_start", "total_sales");
+    const previous = buildSummarySeries(previousSeries, previousRows.data || [], "week_start", "total_sales");
+    return { range, bucket, current, previous };
+  }
+
+  const series = buildMonthSeries(currentStart, currentEnd);
+  const previousSeries = buildMonthSeries(previousStart, previousEnd);
+
+  let currentRows = await supabase
+    .from("sales_monthly")
+    .select("month_start, total_sales")
+    .gte("month_start", series[0])
+    .lte("month_start", series[series.length - 1])
+    .order("month_start", { ascending: true });
+
+  if (currentRows.error && currentRows.error.code === "42P01") {
+    const tx = await fetchTransactionsBetween(currentStart, currentEnd);
+    const grouped: Record<string, number> = {};
+    tx.forEach((row: any) => {
+      const dateKey = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+      const monthKey = getMonthStart(dateKey);
+      grouped[monthKey] = (grouped[monthKey] || 0) + Number(row.total || 0);
+    });
+    currentRows = { data: Object.entries(grouped).map(([month_start, total_sales]) => ({ month_start, total_sales })) } as any;
+  }
+
+  let previousRows = await supabase
+    .from("sales_monthly")
+    .select("month_start, total_sales")
+    .gte("month_start", previousSeries[0])
+    .lte("month_start", previousSeries[previousSeries.length - 1])
+    .order("month_start", { ascending: true });
+
+  if (previousRows.error && previousRows.error.code === "42P01") {
+    const tx = await fetchTransactionsBetween(previousStart, previousEnd);
+    const grouped: Record<string, number> = {};
+    tx.forEach((row: any) => {
+      const dateKey = formatDateInTZ(new Date(row.created_at || row.transaction_date), ANALYTICS_TIMEZONE);
+      const monthKey = getMonthStart(dateKey);
+      grouped[monthKey] = (grouped[monthKey] || 0) + Number(row.total || 0);
+    });
+    previousRows = { data: Object.entries(grouped).map(([month_start, total_sales]) => ({ month_start, total_sales })) } as any;
+  }
+
+  const current = buildSummarySeries(series, currentRows.data || [], "month_start", "total_sales");
+  const previous = buildSummarySeries(previousSeries, previousRows.data || [], "month_start", "total_sales");
+  return { range, bucket: "month", current, previous };
+};
+
 /**
  * GET /api/admin/analytics/kpis
  * Get key performance indicators for today/selected date
@@ -131,6 +476,65 @@ router.get("/sales-trend", authenticateToken, async (req: Request, res: Response
     res.json(data);
   } catch (error) {
     console.error("[SALES_TREND] Error:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/admin/analytics/growth
+ * Business Growth Timeline (current vs previous period)
+ */
+router.get("/growth", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const range = String(req.query.range || "7D").toUpperCase();
+    const data = await getGrowthSeries(range);
+    return res.json(data);
+  } catch (error) {
+    console.error("[GROWTH_TIMELINE] Error:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/admin/analytics/growth/summary
+ * Summary metrics for current vs previous period
+ */
+router.get("/growth/summary", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const range = String(req.query.range || "7D").toUpperCase();
+    const data = await getGrowthSeries(range);
+
+    const currentTotal = data.current.reduce((sum, point) => sum + point.value, 0);
+    const previousTotal = data.previous.reduce((sum, point) => sum + point.value, 0);
+    const avg = data.current.length > 0 ? currentTotal / data.current.length : 0;
+
+    let bestLabel = "-";
+    let bestValue = -Infinity;
+    data.current.forEach((point) => {
+      if (point.value > bestValue) {
+        bestValue = point.value;
+        bestLabel = point.label;
+      }
+    });
+
+    const changePct = previousTotal > 0
+      ? ((currentTotal - previousTotal) / previousTotal) * 100
+      : 0;
+
+    const trend = computeTrendLabel(data.current.map((point) => point.value));
+
+    res.json({
+      range,
+      bucket: data.bucket,
+      currentTotal,
+      previousTotal,
+      avg,
+      bestLabel,
+      changePct,
+      trend,
+    });
+  } catch (error) {
+    console.error("[GROWTH_SUMMARY] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
