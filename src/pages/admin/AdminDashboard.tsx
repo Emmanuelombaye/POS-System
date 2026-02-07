@@ -3,7 +3,7 @@ import { BarChart3, ShoppingCart, TrendingUp, Sparkles, Wallet } from "lucide-re
 import { ShiftStockDashboard } from "./ShiftStockDashboard";
 import { SalesRealTimeMonitor } from "@/components/admin/SalesRealTimeMonitor";
 import { AnalyticsDashboard } from "@/pages/analytics/AnalyticsDashboard";
-import { ProAnalyticsDashboard } from "@/pages/analytics/ProAnalyticsDashboard";
+import { AdminAnalyticsDashboard } from "./AdminAnalyticsDashboard";
 import { AdminExpensesDashboard } from "@/components/admin/AdminExpensesDashboard";
 
 /**
@@ -81,7 +81,7 @@ export const AdminDashboard = () => {
           <AnalyticsDashboard />
         </div>
         <div style={{ display: activeTab === "pro-analytics" ? "block" : "none" }}>
-          <ProAnalyticsDashboard />
+          <AdminAnalyticsDashboard />
         </div>
         <div style={{ display: activeTab === "expenses" ? "block" : "none" }}>
           <AdminExpensesDashboard />
