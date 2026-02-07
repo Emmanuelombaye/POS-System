@@ -65,71 +65,103 @@ export const ModernAdminDashboard = () => {
       <AdminAIAssistant isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
 
       {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+      <div className="bg-gradient-to-r from-brand-burgundy to-red-600 border-b-4 border-brand-burgundy sticky top-0 z-50 shadow-lg">
         <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo & Title */}
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-burgundy to-red-600 shadow-lg flex-shrink-0">
-                <span className="text-white font-black text-lg md:text-xl">E</span>
+            <div className="flex items-center gap-2 md:gap-3 flex-1">
+              <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-white shadow-lg flex-shrink-0">
+                <span className="text-brand-burgundy font-black text-lg md:text-xl">ED</span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-base md:text-xl font-black text-gray-900 truncate">Eden Drop 001 Admin</h1>
-                <p className="text-xs font-semibold text-gray-500 hidden sm:block">Control Panel</p>
+                <h1 className="text-sm md:text-lg font-black text-white truncate">Admin Center</h1>
+                <p className="text-xs font-semibold text-white/80 hidden sm:block">System Control</p>
               </div>
             </div>
 
-            {/* System Status & Menu */}
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="flex items-center gap-2 bg-emerald-50 px-3 md:px-4 py-2 rounded-xl">
-                <div className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </div>
-                <span className="text-xs md:text-sm font-bold text-emerald-700">Online</span>
-              </div>
-
-              {/* No menu needed - all tabs visible */}
+            {/* Desktop Navigation - Hidden on mobile */}
+            <div className="hidden lg:flex items-center gap-1 overflow-x-auto">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleTabClick(tab.id as Tab)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+                      isActive
+                        ? "bg-white text-brand-burgundy shadow-lg"
+                        : "text-white hover:bg-white/20"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden md:inline">{tab.label}</span>
+                  </motion.button>
+                );
+              })}
             </div>
+
+            {/* System Status */}
+            <div className="hidden md:flex items-center gap-2 bg-white/20 px-3 py-2 rounded-xl mx-4">
+              <div className="relative flex h-2 w-2 flex-shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </div>
+              <span className="text-xs font-bold text-white">Online</span>
+            </div>
+
+            {/* Mobile Hamburger Menu Button */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden flex items-center justify-center p-2 rounded-lg hover:bg-white/20 transition-colors"
+              title={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6 text-white" />
+              ) : (
+                <Menu className="h-6 w-6 text-white" />
+              )}
+            </motion.button>
           </div>
 
-          {/* Desktop Tab Navigation - Always Visible, Wrapping */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-4">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <motion.button
-                  key={tab.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setActiveTab(tab.id as Tab);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`relative flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg font-bold text-xs transition-all ${
-                    isActive
-                      ? "bg-gradient-to-r from-brand-burgundy to-red-600 text-white shadow-lg"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title={tab.label}
-                >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="truncate text-center text-xs">{tab.label}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute inset-0 bg-gradient-to-r from-brand-burgundy to-red-600 rounded-lg -z-10"
-                      transition={{ type: "spring", duration: 0.5 }}
-                    />
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Mobile Menu Button - Only for visual indicator */}
-          {/* Removed - tabs are now always visible in grid */}
+          {/* Mobile Menu - Slides Down */}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{
+              opacity: isMobileMenuOpen ? 1 : 0,
+              height: isMobileMenuOpen ? "auto" : 0,
+            }}
+            transition={{ duration: 0.2 }}
+            className="lg:hidden overflow-hidden mt-4 border-t border-white/20"
+          >
+            <div className="pt-3 pb-2 space-y-1 max-h-[calc(100vh-120px)] overflow-y-auto">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleTabClick(tab.id as Tab)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                      isActive
+                        ? "bg-white text-brand-burgundy shadow-lg"
+                        : "text-white hover:bg-white/20"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="text-left flex-1">{tab.label}</span>
+                    {isActive && (
+                      <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
         </div>
       </div>
 
