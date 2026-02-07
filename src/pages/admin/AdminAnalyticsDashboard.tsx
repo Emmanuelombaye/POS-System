@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { useAppStore } from "@/store/appStore";
+import { api } from "@/utils/api";
 
 interface GrowthPoint {
   label: string;
@@ -110,29 +111,16 @@ export const AdminAnalyticsDashboard = () => {
 
     try {
       const [growthResponse, summaryResponse] = await Promise.all([
-        fetch(`/api/admin/analytics/growth?range=${range}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`/api/admin/analytics/growth/summary?range=${range}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
+        api.get(`/api/admin/analytics/growth`, { range }),
+        api.get(`/api/admin/analytics/growth/summary`, { range }),
       ]);
 
-      if (!growthResponse.ok || !summaryResponse.ok) {
-        throw new Error("Failed to load growth analytics");
-      }
-
-      const data = (await growthResponse.json()) as GrowthResponse;
-      const summaryData = (await summaryResponse.json()) as GrowthSummary;
-      setGrowthData(data);
-      setSummary(summaryData);
+      setGrowthData(growthResponse as GrowthResponse);
+      setSummary(summaryResponse as GrowthSummary);
       setPinnedIndex(null);
       setLastUpdated(new Date());
     } catch (err) {
+      console.error('[GROWTH] Error fetching growth data:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);
