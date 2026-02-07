@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "@/utils/supabase";
-import { api } from "@/utils/api";
+import { api, isOnline } from "@/utils/api";
 
 export type Role = "cashier" | "manager" | "admin";
 export type BranchId = "eden-drop-tamasha" | "eden-drop-reem" | "eden-drop-ukunda";
@@ -254,6 +254,13 @@ export const useAppStore = create<AppState>()(
       login: async (userId, password) => {
         try {
           const res = await api.post("/api/auth/login", { userId, password });
+          if (res?.offline) {
+            const offlineUser = get().users.find((u) => u.id === userId);
+            if (offlineUser) {
+              set({ currentUser: offlineUser, token: undefined });
+              return;
+            }
+          }
           if (res.token && res.user) {
             localStorage.setItem("token", res.token);
             set({
@@ -265,6 +272,13 @@ export const useAppStore = create<AppState>()(
             await initialize();
           }
         } catch (error) {
+          if (!isOnline()) {
+            const offlineUser = get().users.find((u) => u.id === userId);
+            if (offlineUser) {
+              set({ currentUser: offlineUser, token: undefined });
+              return;
+            }
+          }
           console.error("Login failed:", error);
           throw error;
         }
