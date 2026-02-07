@@ -1676,6 +1676,255 @@ const gatherAIContext = async () => {
   }
 };
 
+// ===== NEW REPORTING ENDPOINTS =====
+
+// 1. Wastage Report - Track daily losses
+app.get("/api/reports/wastage", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { period } = req.query; // "today", "week", "month"
+    let startDate = new Date();
+    
+    if (period === "week") startDate.setDate(startDate.getDate() - 7);
+    else if (period === "month") startDate.setMonth(startDate.getMonth() - 1);
+    else startDate.setHours(0, 0, 0, 0); // today
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+
+    // Get shift history with sales data to calculate wastage
+    const { data: shifts, error: shiftsError } = await supabase
+      .from("shifts")
+      .select("*, transactions(id, items)")
+      .gte("shift_date", startDateStr)
+      .order("shift_date", { ascending: false });
+
+    if (shiftsError || !shifts) {
+      return res.json([]);
+    }
+
+    let wastageData: any[] = [];
+
+    // For now, calculate based on inventory variance (difference between expected and actual)
+    for (const shift of shifts) {
+      const { data: shiftStock } = await supabase
+        .from("shift_stock_entries")
+        .select("*, products(name, unit, cost_per_unit)")
+        .eq("shift_id", shift.id);
+
+      if (shiftStock) {
+        for (const entry of shiftStock) {
+          const variance = (entry.opening_stock || 0) + (entry.added_stock || 0) - (entry.closing_stock || 0) - (entry.sold_stock || 0);
+          if (variance > 0) {
+            wastageData.push({
+              product_name: entry.products?.name || "Unknown",
+              quantity_wasted: variance,
+              unit: entry.products?.unit || "kg",
+              reason: "variance", // Could be spoilage, trimming, damage, etc.
+              date: shift.shift_date,
+              cashier_name: shift.cashier_name,
+              cost_lost: variance * (entry.products?.cost_per_unit || 0),
+            });
+          }
+        }
+      }
+    }
+
+    res.json(wastageData);
+  } catch (error) {
+    console.error("[WASTAGE REPORT] Error:", error);
+    res.json([]);
+  }
+});
+
+// 2. Daily Reconciliation - Cash vs Expected
+app.get("/api/reports/reconciliation", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data: shifts } = await supabase
+      .from("shifts")
+      .select("*, transactions(id, items, payment_method, amount)")
+      .eq("shift_date", today)
+      .order("created_at", { ascending: false });
+
+    if (!shifts) {
+      return res.json([]);
+    }
+
+    const reconciliations: any[] = [];
+
+    for (const shift of shifts) {
+      if (!shift.transactions) continue;
+
+      // Calculate expected total from transactions
+      const expectedTotal = (shift.transactions as any[]).reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+      // Calculate actual by payment method
+      const actualCash = (shift.transactions as any[])
+        .filter((tx: any) => tx.payment_method === "cash")
+        .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+      const actualMpesa = (shift.transactions as any[])
+        .filter((tx: any) => tx.payment_method === "mpesa")
+        .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+      reconciliations.push({
+        shift_date: shift.shift_date,
+        expected_total: expectedTotal,
+        actual_cash: actualCash,
+        actual_mpesa: actualMpesa,
+        difference: (actualCash + actualMpesa) - expectedTotal,
+        cashier_name: shift.cashier_name,
+        notes: "Daily reconciliation record",
+      });
+    }
+
+    res.json(reconciliations);
+  } catch (error) {
+    console.error("[RECONCILIATION] Error:", error);
+    res.json([]);
+  }
+});
+
+// 3. Cashier KPIs - Performance metrics
+app.get("/api/reports/cashier-kpis", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get all shifts for today
+    const { data: shifts } = await supabase
+      .from("shifts")
+      .select("*, transactions(id, items, amount)")
+      .eq("shift_date", today);
+
+    if (!shifts) {
+      return res.json([]);
+    }
+
+    const kpisMap = new Map<string, any>();
+
+    for (const shift of shifts) {
+      const cashierId = shift.cashier_id;
+      if (!kpisMap.has(cashierId)) {
+        kpisMap.set(cashierId, {
+          cashier_id: cashierId,
+          cashier_name: shift.cashier_name,
+          total_sales: 0,
+          transaction_count: 0,
+          avg_transaction: 0,
+          shift_hours: 0,
+          sales_per_hour: 0,
+        });
+      }
+
+      const kpi = kpisMap.get(cashierId);
+      const transactions = shift.transactions as any[];
+      if (transactions) {
+        const sales = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+        kpi.total_sales += sales;
+        kpi.transaction_count += transactions.length;
+      }
+
+      // Calculate shift hours
+      const openTime = new Date(shift.opening_time || "");
+      const closeTime = shift.closing_time ? new Date(shift.closing_time) : new Date();
+      kpi.shift_hours += (closeTime.getTime() - openTime.getTime()) / (1000 * 60 * 60);
+    }
+
+    // Calculate averages
+    const kpis = Array.from(kpisMap.values()).map((kpi) => ({
+      ...kpi,
+      avg_transaction: kpi.transaction_count > 0 ? kpi.total_sales / kpi.transaction_count : 0,
+      sales_per_hour: kpi.shift_hours > 0 ? kpi.total_sales / kpi.shift_hours : 0,
+    }));
+
+    res.json(kpis);
+  } catch (error) {
+    console.error("[CASHIER KPIs] Error:", error);
+    res.json([]);
+  }
+});
+
+// 4. Stock Adjustments - Record inventory corrections
+app.post("/api/stock/adjustments", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { adjustments } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!adjustments || adjustments.length === 0) {
+      return res.status(400).json({ error: "No adjustments provided" });
+    }
+
+    const adjustmentRecords = adjustments.map((adj: any) => ({
+      product_id: adj.product_id,
+      adjustment_type: adj.adjustment_type,
+      quantity: adj.quantity,
+      reason: adj.reason,
+      notes: adj.notes || "",
+      adjusted_by: userId,
+      adjustment_date: new Date().toISOString(),
+    }));
+
+    // Insert adjustment records
+    const { error: insertError } = await supabase
+      .from("stock_adjustments")
+      .insert(adjustmentRecords);
+
+    if (insertError) {
+      console.error("[STOCK ADJUSTMENTS] Insert error:", insertError);
+      return res.status(400).json({ error: insertError.message });
+    }
+
+    // Update product stock quantities
+    for (const adj of adjustments) {
+      if (adj.adjustment_type === "increase") {
+        // Increase stock
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock_kg")
+          .eq("id", adj.product_id)
+          .single();
+
+        if (product) {
+          await supabase
+            .from("products")
+            .update({ stock_kg: (product.stock_kg || 0) + adj.quantity })
+            .eq("id", adj.product_id);
+        }
+      } else if (adj.adjustment_type === "decrease") {
+        // Decrease stock
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock_kg")
+          .eq("id", adj.product_id)
+          .single();
+
+        if (product) {
+          await supabase
+            .from("products")
+            .update({ stock_kg: Math.max(0, (product.stock_kg || 0) - adj.quantity) })
+            .eq("id", adj.product_id);
+        }
+      }
+    }
+
+    // Log to inventory ledger
+    const ledgerEntries = adjustments.map((adj: any) => ({
+      item_id: adj.product_id,
+      event_type: "ADJUSTMENT",
+      quantity_kg: adj.adjustment_type === "increase" ? adj.quantity : -adj.quantity,
+      user_id: userId,
+      reference_id: `adjustment-${new Date().getTime()}`,
+    }));
+
+    await supabase.from("inventory_ledger").insert(ledgerEntries);
+
+    res.json({ success: true, message: "Stock adjustments applied successfully" });
+  } catch (error) {
+    console.error("[STOCK ADJUSTMENTS] Catch error:", error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // AI Chat endpoint
 app.post("/api/ai/chat", authenticateToken, authorizeRoles("admin"), async (req: Request, res: Response) => {
   const { query } = req.body;

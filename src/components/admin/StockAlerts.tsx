@@ -29,7 +29,7 @@ export const StockAlerts = () => {
 
   const fetchStockAlerts = async () => {
     try {
-      const response = await api.get("/api/reports/stock-alerts");
+      const response = await api.get("/api/stock/alerts");
       setAlerts(response?.data || []);
       setLoading(false);
     } catch (err) {
