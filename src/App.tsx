@@ -9,8 +9,6 @@ import { ManagerDashboard } from "@/pages/manager/ManagerDashboard";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { ShiftSummaryDashboard } from "@/pages/admin/ShiftSummaryDashboard";
 import { AdminAnalyticsDashboard } from "@/pages/admin/AdminAnalyticsDashboard";
-import { AnalyticsDashboard } from "@/pages/analytics/AnalyticsDashboard";
-import { ProAnalyticsDashboard } from "@/pages/analytics/ProAnalyticsDashboard";
 import { useAppStore } from "@/store/appStore";
 import { useOfflineStore } from "@/store/offlineStore";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -202,22 +200,6 @@ export const App = () => {
               element={
                 <RequireRole role="admin">
                   <AdminAnalyticsDashboard />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <RequireRole role="admin">
-                  <AnalyticsDashboard />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/pro-analytics"
-              element={
-                <RequireRole role="admin">
-                  <ProAnalyticsDashboard />
                 </RequireRole>
               }
             />

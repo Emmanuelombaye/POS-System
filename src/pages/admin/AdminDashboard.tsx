@@ -2,7 +2,6 @@ import { useState } from "react";
 import { BarChart3, ShoppingCart, TrendingUp, Sparkles, Wallet } from "lucide-react";
 import { ShiftStockDashboard } from "./ShiftStockDashboard";
 import { SalesRealTimeMonitor } from "@/components/admin/SalesRealTimeMonitor";
-import { AnalyticsDashboard } from "@/pages/analytics/AnalyticsDashboard";
 import { AdminAnalyticsDashboard } from "./AdminAnalyticsDashboard";
 import { AdminExpensesDashboard } from "@/components/admin/AdminExpensesDashboard";
 
@@ -10,7 +9,7 @@ import { AdminExpensesDashboard } from "@/components/admin/AdminExpensesDashboar
  * Admin Dashboard - Main admin page with tabbed navigation
  */
 export const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "sales" | "analytics" | "pro-analytics" | "expenses">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "sales" | "pro-analytics" | "expenses">("dashboard");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -76,9 +75,6 @@ export const AdminDashboard = () => {
         </div>
         <div style={{ display: activeTab === "sales" ? "block" : "none" }}>
           <SalesRealTimeMonitor />
-        </div>
-        <div style={{ display: activeTab === "analytics" ? "block" : "none" }}>
-          <AnalyticsDashboard />
         </div>
         <div style={{ display: activeTab === "pro-analytics" ? "block" : "none" }}>
           <AdminAnalyticsDashboard />
