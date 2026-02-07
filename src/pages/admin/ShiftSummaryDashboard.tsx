@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/utils/api";
+import { api, isOnline } from "@/utils/api";
 import { useAppStore } from "@/store/appStore";
+import { OfflineErrorDisplay } from "@/components/OfflineErrorDisplay";
 import {
   Calendar,
   DollarSign,
@@ -185,16 +186,7 @@ export const ShiftSummaryDashboard = () => {
         )}
 
         {/* Error State */}
-        {error && (
-          <Card className="shadow-lg border-red-200 bg-red-50">
-            <CardContent className="py-6">
-              <div className="flex items-center gap-3 text-red-700">
-                <AlertCircle className="h-5 w-5" />
-                <p>{error}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <OfflineErrorDisplay error={error} isLoading={loading} />
 
         {/* No Data State */}
         {!loading && summaryData && summaryData.total_shifts === 0 && (

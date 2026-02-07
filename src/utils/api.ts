@@ -28,6 +28,18 @@ export const isOnline = () => {
   return navigator.onLine && window.netConnectivity !== false;
 };
 
+// Check if we have any cached data (for offline indication)
+export const hasOfflineData = (endpoint: string): boolean => {
+  try {
+    const cacheData = localStorage.getItem(OFFLINE_STORAGE_KEY);
+    if (!cacheData) return false;
+    const cache = JSON.parse(cacheData) as Record<string, CacheEntry>;
+    return !!cache[endpoint];
+  } catch {
+    return false;
+  }
+};
+
 // Get from local cache
 const getFromCache = (endpoint: string): any | null => {
   try {

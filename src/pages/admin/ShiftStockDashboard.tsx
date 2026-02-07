@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/appStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, AlertCircle, Clock, DollarSign } from "lucide-react";
-import { api } from "@/utils/api";
+import { TrendingUp, TrendingDown, AlertCircle, Clock, DollarSign, Loader } from "lucide-react";
+import { api, isOnline } from "@/utils/api";
+import { OfflineErrorDisplay } from "@/components/OfflineErrorDisplay";
 
 interface Shift {
   id: string;
@@ -47,6 +48,7 @@ export const ShiftStockDashboard = () => {
   const { token, users } = useAppStore();
   const [activeShifts, setActiveShifts] = useState<ActiveShiftData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>("");
   const [selectedCashierId, setSelectedCashierId] = useState<string>("all");
 
@@ -131,8 +133,10 @@ export const ShiftStockDashboard = () => {
 
       setActiveShifts(shiftsWithStockData);
       setLastUpdate(new Date().toLocaleTimeString());
+      setError(null);
     } catch (error) {
       console.error("[DASHBOARD] Error fetching shifts:", error);
+      setError((error as Error).message || "Failed to load shifts data. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -234,7 +238,9 @@ export const ShiftStockDashboard = () => {
       </div>
 
       {/* Shifts Grid */}
-      {loading ? (
+      <OfflineErrorDisplay error={error} isLoading={loading} />
+
+      {loading && !error ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
