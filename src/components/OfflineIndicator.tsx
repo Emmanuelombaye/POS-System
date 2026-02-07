@@ -105,6 +105,23 @@ export const OfflineIndicator = () => {
         )}
       </AnimatePresence>
 
+      {/* Persistent Offline Badge */}
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 16, opacity: 0 }}
+            className={`fixed z-50 ${showInstallButton && !installed ? "bottom-20 right-4" : "bottom-4 right-4"}`}
+          >
+            <div className="flex items-center gap-2 rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold shadow-lg">
+              <WifiOff className="h-3 w-3" />
+              Offline
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
     </>
   );
