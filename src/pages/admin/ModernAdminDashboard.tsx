@@ -13,6 +13,9 @@ import {
   Menu,
   X,
   TrendingDown,
+  AlertTriangle,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { api } from "@/utils/api";
@@ -25,6 +28,11 @@ import { ClosedShiftsView } from "@/components/admin/ClosedShiftsView";
 import { AdminAIAssistant } from "@/components/admin/AdminAIAssistant";
 import { SalesTransactionInsights } from "@/components/admin/SalesTransactionInsights";
 import { AdminExpensesDashboard } from "@/components/admin/AdminExpensesDashboard";
+import { WastageReport } from "@/components/admin/WastageReport";
+import { DailyReconciliation } from "@/components/admin/DailyReconciliation";
+import { CashierKPIs } from "@/components/admin/CashierKPIs";
+import { StockAlerts } from "@/components/admin/StockAlerts";
+import { StockAdjustments } from "@/components/admin/StockAdjustments";
 
 type Tab =
   | "overview"
@@ -34,6 +42,11 @@ type Tab =
   | "sales"
   | "analytics"
   | "expenses"
+  | "wastage"
+  | "reconciliation"
+  | "cashier-kpis"
+  | "stock-alerts"
+  | "stock-adjustments"
   | "settings"
   | "audit";
 
@@ -45,6 +58,11 @@ const TABS = [
   { id: "sales", label: "Sales", icon: ShoppingCart },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "expenses", label: "Expenses", icon: TrendingDown },
+  { id: "wastage", label: "Wastage", icon: AlertTriangle },
+  { id: "reconciliation", label: "Reconciliation", icon: CheckCircle },
+  { id: "cashier-kpis", label: "Cashier KPIs", icon: Users },
+  { id: "stock-alerts", label: "Alerts", icon: AlertCircle },
+  { id: "stock-adjustments", label: "Adjustments", icon: Package },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "audit", label: "Audit Logs", icon: Shield },
 ] as const;
@@ -180,6 +198,11 @@ export const ModernAdminDashboard = () => {
           {activeTab === "sales" && <SalesTransactionInsights />}
           {activeTab === "analytics" && <AnalyticsTab />}
           {activeTab === "expenses" && <AdminExpensesDashboard />}
+          {activeTab === "wastage" && <WastageReport />}
+          {activeTab === "reconciliation" && <DailyReconciliation />}
+          {activeTab === "cashier-kpis" && <CashierKPIs />}
+          {activeTab === "stock-alerts" && <StockAlerts />}
+          {activeTab === "stock-adjustments" && <StockAdjustments />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "audit" && <AuditTab />}
         </motion.div>
