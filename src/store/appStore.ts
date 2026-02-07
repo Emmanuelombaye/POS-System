@@ -107,6 +107,7 @@ export interface ShiftSnapshot {
 export interface AppState {
   currentUser?: User;
   token?: string;
+  lastLoginMode?: "online" | "offline";
   currentBranch: BranchId;
   products: Product[];
   users: User[];
@@ -238,6 +239,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: undefined,
       token: undefined,
+      lastLoginMode: undefined,
       currentBranch: "branch1",
       products: initialProducts,
       users: initialUsers,
@@ -257,7 +259,7 @@ export const useAppStore = create<AppState>()(
           if (res?.offline) {
             const offlineUser = get().users.find((u) => u.id === userId);
             if (offlineUser) {
-              set({ currentUser: offlineUser, token: undefined });
+              set({ currentUser: offlineUser, token: undefined, lastLoginMode: "offline" });
               return;
             }
           }
@@ -265,7 +267,8 @@ export const useAppStore = create<AppState>()(
             localStorage.setItem("token", res.token);
             set({
               currentUser: res.user,
-              token: res.token
+              token: res.token,
+              lastLoginMode: "online"
             });
             // Re-initialize data since we now have a token
             const { initialize } = get();
@@ -275,7 +278,7 @@ export const useAppStore = create<AppState>()(
           if (!isOnline()) {
             const offlineUser = get().users.find((u) => u.id === userId);
             if (offlineUser) {
-              set({ currentUser: offlineUser, token: undefined });
+              set({ currentUser: offlineUser, token: undefined, lastLoginMode: "offline" });
               return;
             }
           }
@@ -289,6 +292,7 @@ export const useAppStore = create<AppState>()(
         set({
           currentUser: undefined,
           token: undefined,
+          lastLoginMode: undefined,
           cashierCart: [],
           cashierDiscount: undefined,
           activeShift: undefined

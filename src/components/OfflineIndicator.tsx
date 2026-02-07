@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, Download, RefreshCw } from "lucide-react";
 import { useOfflineStore } from "@/store/offlineStore";
+import { useAppStore } from "@/store/appStore";
 import { showInstallPrompt, isAppInstalled } from "@/utils/pwa";
 import { Button } from "./ui/button";
 
 export const OfflineIndicator = () => {
   const { isOnline, pendingTransactions } = useOfflineStore();
+  const { currentUser, lastLoginMode } = useAppStore();
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
@@ -116,7 +118,7 @@ export const OfflineIndicator = () => {
           >
             <div className="flex items-center gap-2 rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold shadow-lg">
               <WifiOff className="h-3 w-3" />
-              Offline
+              {currentUser && lastLoginMode === "offline" ? "Offline (local login)" : "Offline"}
             </div>
           </motion.div>
         )}
