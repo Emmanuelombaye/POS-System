@@ -9,6 +9,7 @@ export const OfflineIndicator = () => {
   const { isOnline, pendingTransactions } = useOfflineStore();
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
@@ -25,6 +26,19 @@ export const OfflineIndicator = () => {
     return () => window.removeEventListener('beforeinstallprompt', checkInstallable);
   }, []);
 
+  useEffect(() => {
+    if (!isOnline) {
+      setShowOfflineBanner(true);
+      const timer = window.setTimeout(() => {
+        setShowOfflineBanner(false);
+      }, 2000);
+      return () => window.clearTimeout(timer);
+    }
+
+    setShowOfflineBanner(false);
+    return undefined;
+  }, [isOnline]);
+
   const handleInstall = async () => {
     const accepted = await showInstallPrompt();
     if (accepted) {
@@ -37,7 +51,7 @@ export const OfflineIndicator = () => {
     <>
       {/* Offline/Online Status Bar */}
       <AnimatePresence>
-        {!isOnline && (
+        {showOfflineBanner && !isOnline && (
           <motion.div
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
