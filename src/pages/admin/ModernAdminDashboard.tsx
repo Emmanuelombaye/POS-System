@@ -71,11 +71,28 @@ export const ModernAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleTabClick = (tabId: Tab) => {
     setActiveTab(tabId);
     setIsMobileMenuOpen(false);
+    setSearchQuery("");
   };
+
+  // Group tabs for mobile navigation
+  const tabGroups = {
+    "Core": TABS.slice(0, 3), // Overview, Users, Branches
+    "Inventory": TABS.slice(3, 6), // Products, Sales, Analytics
+    "Operations": TABS.slice(6, 10), // Expenses, Wastage, Reconciliation, Cashier KPIs
+    "Stock": TABS.slice(10, 12), // Alerts, Adjustments
+    "System": TABS.slice(12), // Settings, Audit
+  };
+
+  const filteredTabs = searchQuery
+    ? TABS.filter((tab) =>
+        tab.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 relative">
@@ -155,29 +172,83 @@ export const ModernAdminDashboard = () => {
             transition={{ duration: 0.2 }}
             className="lg:hidden overflow-hidden mt-4 border-t border-white/20"
           >
-            <div className="pt-3 pb-2 space-y-1 max-h-[calc(100vh-120px)] overflow-y-auto">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleTabClick(tab.id as Tab)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all ${
-                      isActive
-                        ? "bg-white text-brand-burgundy shadow-lg"
-                        : "text-white hover:bg-white/20"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className="text-left flex-1">{tab.label}</span>
-                    {isActive && (
-                      <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                    )}
-                  </motion.button>
-                );
-              })}
+            <div className="pt-3 pb-2 space-y-2 max-h-[calc(100vh-180px)] overflow-y-auto px-2">
+              {/* Search Bar */}
+              <div className="px-2 pb-2 sticky top-0 bg-gradient-to-r from-brand-burgundy to-red-600 z-10">
+                <input
+                  type="text"
+                  placeholder="Search tabs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-burgundy"
+                />
+              </div>
+
+              {/* Show search results or grouped tabs */}
+              {filteredTabs ? (
+                // Search Results
+                <div className="space-y-1">
+                  {filteredTabs.length > 0 ? (
+                    filteredTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <motion.button
+                          key={tab.id}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleTabClick(tab.id as Tab)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                            isActive
+                              ? "bg-white text-brand-burgundy shadow-lg"
+                              : "text-white hover:bg-white/20"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5 flex-shrink-0" />
+                          <span className="text-left flex-1">{tab.label}</span>
+                          {isActive && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                        </motion.button>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-4 text-white/60 text-sm">
+                      No tabs found
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Grouped Tabs
+                Object.entries(tabGroups).map(([groupName, groupTabs]) => (
+                  <div key={groupName}>
+                    <p className="text-xs font-bold text-white/60 uppercase px-2 py-1 mt-2">
+                      {groupName}
+                    </p>
+                    <div className="space-y-1">
+                      {groupTabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                          <motion.button
+                            key={tab.id}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleTabClick(tab.id as Tab)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                              isActive
+                                ? "bg-white text-brand-burgundy shadow-lg"
+                                : "text-white hover:bg-white/20"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5 flex-shrink-0" />
+                            <span className="text-left flex-1">{tab.label}</span>
+                            {isActive && (
+                              <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
         </div>
