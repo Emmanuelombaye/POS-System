@@ -161,6 +161,16 @@ export const CashierShiftWorkflow = () => {
     checkActiveShift();
   }, [currentUser?.id, token]);
 
+  // Auto-calculate closing stock from stock entries
+  useEffect(() => {
+    const calculated: Record<string, number> = {};
+    stockEntries.forEach((entry) => {
+      // Closing stock = Opening + Added - Sold (from cart sales)
+      calculated[entry.product_id] = entry.opening_stock + entry.added_stock - entry.sold_stock;
+    });
+    setClosingStock(calculated);
+  }, [stockEntries]);
+
   // Get active shift on mount
   useEffect(() => {
     if (stage === "active" && shiftData) {
@@ -473,11 +483,6 @@ export const CashierShiftWorkflow = () => {
     if (!shiftId) {
       setError("Cannot close shift: shift ID is missing. Please refresh and try again.");
       console.error("[SHIFT_CLOSE_ERROR] No shift ID available:", shiftData);
-      return;
-    }
-
-    if (Object.keys(closingStock).length === 0) {
-      setError("Please enter closing stock for all products");
       return;
     }
 
@@ -1459,32 +1464,32 @@ export const CashierShiftWorkflow = () => {
                     )}
                   </div>
 
-                  {/* Closing Stock Entries */}
+                  {/* Closing Stock Summary - Auto-Calculated from Sales */}
                   <div className="max-h-96 overflow-y-auto">
                     <label className="block text-sm font-bold text-slate-700 mb-3">
-                      Closing Stock for Each Product
+                      Closing Stock (Auto-Calculated from Sales)
                     </label>
-                    <div className="space-y-3">
-                      {stockEntries.map((entry) => (
-                        <div key={entry.product_id}>
-                          <p className="text-xs text-slate-600 mb-1">
-                            {entry.product_name}
-                          </p>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={closingStock[entry.product_id] || 0}
-                            onChange={(e) =>
-                              setClosingStock({
-                                ...closingStock,
-                                [entry.product_id]: parseFloat(e.target.value),
-                              })
-                            }
-                            placeholder="0.0"
-                            className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
-                          />
-                        </div>
-                      ))}
+                    <div className="space-y-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                      {stockEntries.map((entry) => {
+                        const calculated = entry.opening_stock + entry.added_stock - entry.sold_stock;
+                        return (
+                          <div key={entry.product_id} className="flex justify-between items-center py-2 border-b border-green-100 last:border-b-0">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-700">
+                                {entry.product_name}
+                              </p>
+                              <p className="text-[10px] text-slate-500">
+                                {entry.opening_stock}kg (open) + {entry.added_stock}kg (added) - {entry.sold_stock}kg (sold)
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-emerald-600">
+                                {calculated.toFixed(1)} kg
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
