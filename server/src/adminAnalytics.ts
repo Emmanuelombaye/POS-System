@@ -248,7 +248,7 @@ const getGrowthSeries = async (range: string) => {
       .lte("date", currentEnd)
       .order("date", { ascending: true });
 
-    if (currentRows.error && currentRows.error.code === "42P01") {
+    if (currentRows.error) {
       const tx = await fetchTransactionsBetween(currentStart, currentEnd);
       const grouped: Record<string, number> = {};
       tx.forEach((row: any) => {
@@ -265,7 +265,7 @@ const getGrowthSeries = async (range: string) => {
       .lte("date", previousEnd)
       .order("date", { ascending: true });
 
-    if (previousRows.error && previousRows.error.code === "42P01") {
+    if (previousRows.error) {
       const tx = await fetchTransactionsBetween(previousStart, previousEnd);
       const grouped: Record<string, number> = {};
       tx.forEach((row: any) => {
@@ -291,7 +291,7 @@ const getGrowthSeries = async (range: string) => {
       .lte("week_start", series[series.length - 1])
       .order("week_start", { ascending: true });
 
-    if (currentRows.error && currentRows.error.code === "42P01") {
+    if (currentRows.error) {
       const tx = await fetchTransactionsBetween(currentStart, currentEnd);
       const grouped: Record<string, number> = {};
       tx.forEach((row: any) => {
@@ -309,7 +309,7 @@ const getGrowthSeries = async (range: string) => {
       .lte("week_start", previousSeries[previousSeries.length - 1])
       .order("week_start", { ascending: true });
 
-    if (previousRows.error && previousRows.error.code === "42P01") {
+    if (previousRows.error) {
       const tx = await fetchTransactionsBetween(previousStart, previousEnd);
       const grouped: Record<string, number> = {};
       tx.forEach((row: any) => {
@@ -335,7 +335,7 @@ const getGrowthSeries = async (range: string) => {
     .lte("month_start", series[series.length - 1])
     .order("month_start", { ascending: true });
 
-  if (currentRows.error && currentRows.error.code === "42P01") {
+  if (currentRows.error) {
     const tx = await fetchTransactionsBetween(currentStart, currentEnd);
     const grouped: Record<string, number> = {};
     tx.forEach((row: any) => {
@@ -353,7 +353,7 @@ const getGrowthSeries = async (range: string) => {
     .lte("month_start", previousSeries[previousSeries.length - 1])
     .order("month_start", { ascending: true });
 
-  if (previousRows.error && previousRows.error.code === "42P01") {
+  if (previousRows.error) {
     const tx = await fetchTransactionsBetween(previousStart, previousEnd);
     const grouped: Record<string, number> = {};
     tx.forEach((row: any) => {
